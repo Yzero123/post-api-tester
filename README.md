@@ -8,7 +8,7 @@
 
 ### 方式一：下载打包版（推荐）
 
-1. 到 [Releases](../../releases) 下载 `通用POST接口测试工具.zip`
+1. 到 [Releases](../../releases) 下载 `post-api-tester-v1.0.0.zip`
 2. 解压到任意目录
 3. **macOS**：双击 `启动测试工具.command`
    首次可能提示"未验证的开发者"，在 `系统设置 → 隐私与安全性` 里点"仍要打开"即可
