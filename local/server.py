@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import socket
 import ssl
@@ -24,6 +25,12 @@ INDEX_FILE = ROOT / "index.html"
 DEFAULT_PORT = 17831
 MAX_CONTROL_BODY = 2 * 1024 * 1024
 MAX_REMOTE_BODY = 20 * 1024 * 1024
+MAX_INLINE_BINARY = 12 * 1024 * 1024
+BINARY_CONTENT_TYPES = {"application/octet-stream", "application/pdf", "application/zip"}
+BINARY_MAGIC = (
+    b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"RIFF", b"OggS",
+    b"\x1a\x45\xdf\xa3", b"BM", b"%PDF", b"ID3",
+)
 BLOCKED_REQUEST_HEADERS = {
     "host",
     "content-length",
@@ -139,6 +146,20 @@ def build_remote_request(payload: dict[str, Any]) -> tuple[urllib.request.Reques
     return urllib.request.Request(url, data=body, headers=headers, method="POST"), body
 
 
+def looks_binary(raw: bytes, content_type: str) -> bool:
+    """Decide whether a response body must be carried as base64 instead of text."""
+    main = content_type.split(";")[0].strip().lower()
+    if main.startswith(("image/", "video/", "audio/")):
+        return True
+    if main in BINARY_CONTENT_TYPES:
+        return True
+    if not raw:
+        return False
+    if raw.startswith(BINARY_MAGIC):
+        return True
+    return b"\x00" in raw[:4096]
+
+
 def decode_response(raw: bytes, content_type: str) -> Any:
     text = raw.decode("utf-8", errors="replace")
     if "json" in content_type.lower() or text.lstrip().startswith(("{", "[")):
@@ -196,7 +217,20 @@ def proxy_post(payload: dict[str, Any]) -> dict[str, Any]:
         elapsed_ms = round((time.perf_counter() - started) * 1000)
         raise LocalError("TLS/SSL 连接失败。", str(exc)) from exc
 
-    text = raw.decode("utf-8", errors="replace")
+    binary = looks_binary(raw, content_type)
+    body_base64: str | None = None
+    body_too_large = False
+    if binary:
+        if len(raw) <= MAX_INLINE_BINARY:
+            body_base64 = base64.b64encode(raw).decode("ascii")
+        else:
+            body_too_large = True
+        text = "（二进制响应，%d 字节，未按文本展示）" % len(raw)
+        parsed: Any = None
+    else:
+        text = raw.decode("utf-8", errors="replace")
+        parsed = decode_response(raw, content_type)
+
     return {
         "ok": True,
         "status": status,
@@ -208,8 +242,11 @@ def proxy_post(payload: dict[str, Any]) -> dict[str, Any]:
         "contentType": content_type,
         "finalUrl": final_url,
         "headers": response_headers,
-        "json": decode_response(raw, content_type),
+        "json": parsed,
         "raw": text,
+        "isBinary": binary,
+        "bodyBase64": body_base64,
+        "bodyTooLarge": body_too_large,
         "truncated": False,
     }
 
@@ -231,7 +268,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'")
+            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:")
             self.end_headers()
             self.wfile.write(data)
             return

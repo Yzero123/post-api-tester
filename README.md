@@ -27,7 +27,7 @@
 | 图片/视频直链 | `{"data":[{"url":"https://cdn.x.com/a.jpeg?sign=..."}]}` |
 | base64 字段 | `{"data":[{"b64_json":"iVBORw0KGgo..."}]}` |
 | data URI | `{"cover":"data:image/webp;base64,..."}` |
-| Anthropic 内容块 | `{"content":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":"..."}}]}` |
+| 内容块内嵌 base64 | `{"content":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":"..."}}]}` |
 | 响应体本身就是图片 | 接口直接返回 `Content-Type: image/png` |
 
 每张卡片显示真实像素尺寸（视频还显示时长），并提供 **打开 / 复制链接 / 下载** 三个操作。
@@ -36,7 +36,7 @@
 
 ### 跨域说明
 
-浏览器要求目标接口返回 `Access-Control-Allow-Origin`。minimax、OpenAI 等主流接口都支持，实测可直接用。
+浏览器要求目标接口返回 `Access-Control-Allow-Origin`。主流接口大多支持，实测可直接用。
 
 如果某个接口不支持，页面会明确告诉你，并给出两个选择：
 
@@ -65,6 +65,10 @@
 
 本地版由本机 Python 服务转发请求，因此**不受浏览器跨域限制**，能打任意 HTTP 接口。
 
+本地版与网页版功能一致：**同样支持图片 / 视频渲染、响应文本提取、分享配置**。区别只在于请求由本机 Python 发出，所以接口不支持 CORS 也能打。二进制响应（`Content-Type: image/*`、`video/*`）会由服务端转成 base64 交给页面渲染。
+
+「复制分享链接」在本地版里生成的是**在线版链接**——因为 `127.0.0.1` 的地址发给别人打不开。
+
 ```bash
 python3 server.py --port 17831     # 指定端口，默认 17831
 python3 server.py --no-browser     # 不自动打开浏览器
@@ -80,7 +84,7 @@ python3 server.py --no-browser     # 不自动打开浏览器
 | --- | --- | --- |
 | 拿到就能用 | ✅ 发个链接 | ❌ 要下载解压 |
 | 绕过 CORS | ❌ 需接口支持 | ✅ 一定能打 |
-| 图片/视频展示 | ✅ | ❌ |
+| 图片/视频展示 | ✅ | ✅ |
 | 密钥去向 | 只在自己浏览器内存 | 只在自己机器 |
 | 适合 | 快速验证、发给别人 | 接口不支持跨域、需要打内网 |
 
@@ -98,7 +102,7 @@ python3 server.py --no-browser     # 不自动打开浏览器
 
 发送后可以看到：
 
-- **图片 / 视频**：自动识别并渲染（仅网页版）
+- **图片 / 视频**：自动识别并渲染（网页版与本地版都支持）
 - **响应文本**：常驻面板，按 顶层 `text` → `content[].text` → `choices[0].message.content` 顺序提取，都没有则显示「响应中未找到可提取文本」
 - **状态码 / 耗时**：非 2xx 也会完整展示，不会被当成异常吞掉
 - **响应头 / 格式化 JSON / cURL**：cURL 里的密钥用环境变量 `$POST_TEST_API_KEY` 引用，不落明文
@@ -112,7 +116,8 @@ python3 server.py --no-browser     # 不自动打开浏览器
 - 本地版服务只监听 `127.0.0.1`，局域网和公网都访问不到
 - 本地版日志只记录方法和路径，**不记录请求体、Headers、查询参数和密钥**
 - cURL 预览用环境变量引用密钥，避免截图或粘贴时泄露
-- 浏览器禁止手动设置的请求头（`Host` / `Origin` / `Content-Length` / `Cookie` / `Sec-*` 等）会被自动忽略并在结果里列出，不会静默丢弃
+- 网页版：浏览器禁止手动设置的请求头（`Host` / `Origin` / `Content-Length` / `Cookie` / `Sec-*` 等）会被自动忽略并在结果里列出，不会静默丢弃
+- 本地版：`Host` / `Content-Length` / `Connection` / `Transfer-Encoding` 由服务端接管，页面会先剔除并在结果里说明
 - 网页版在 HTTPS 下会拦截 `http://` 请求（混合内容），并明确提示
 
 ---
@@ -122,7 +127,7 @@ python3 server.py --no-browser     # 不自动打开浏览器
 - 只支持 POST（如需 GET / PUT / DELETE，自行改代码）
 - 超时范围 1–300 秒，默认 120 秒
 - 网页版受浏览器约束：不能读未开放的响应头、不能跳过证书校验
-- 本地版请求体上限 2 MB，响应体上限 20 MB
+- 本地版请求体上限 2 MB，响应体上限 20 MB；二进制响应超过 12 MB 时跳过内联预览，只给出提示
 - 字体从 Google Fonts 异步加载，网络不通时自动回退系统字体，不影响使用
 
 ---
@@ -163,6 +168,14 @@ LICENSE
 ```
 
 `authMode` 取值：`x-api-key` / `bearer` / `none`。
+
+响应体在原有字段之外，还会返回：
+
+| 字段 | 说明 |
+| --- | --- |
+| `isBinary` | 响应体是否按二进制处理 |
+| `bodyBase64` | 二进制响应的 base64（≤ 12 MB 时给出），页面据此渲染图片 / 视频 |
+| `bodyTooLarge` | 二进制响应超过 12 MB，为 `true` 时不内联预览 |
 
 ## License
 

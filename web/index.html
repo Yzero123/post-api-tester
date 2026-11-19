@@ -321,7 +321,7 @@
                 <input id="proxy" type="text" spellcheck="false" placeholder="https://your-proxy.example.com/?url=">
               </div>
               <p class="advanced-note">
-                绝大多数接口（minimax、OpenAI 等）都允许浏览器跨域直连，这一项留空即可。<br>
+                绝大多数主流接口都允许浏览器跨域直连，这一项留空即可。<br>
                 只有目标接口没返回 <code>Access-Control-Allow-Origin</code> 时才需要填。<br>
                 填法：前缀里含 <code>{url}</code> 就替换成编码后的地址，否则直接把编码后的地址接在后面。<br>
                 没有代理？用 Cloudflare Worker 免费搭一个，脚本见仓库 <code>proxy/cloudflare-worker.js</code>。<br>

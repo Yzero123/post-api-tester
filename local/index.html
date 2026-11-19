@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>通用 POST 接口测试工具</title>
+  <meta name="description" content="打开网页就能用的通用 POST 接口测试工具：填 URL、Headers、JSON 直接发请求，看状态码、耗时、响应头、格式化 JSON、响应文本，并直接展示返回的图片与视频。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- 字体异步加载：网络不通（如国内无法访问 Google Fonts）时不阻塞首屏，直接回退到系统字体 -->
+  <!-- 字体异步加载：网络不通时不阻塞首屏，直接回退到系统字体 -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" media="print" onload="this.media='all';this.onload=null">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap"></noscript>
   <style>
@@ -91,7 +92,6 @@
     }
 
     .workspace { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr); gap: 18px; align-items: start; }
-    .stack { display: grid; gap: 18px; }
 
     .panel {
       overflow: hidden;
@@ -131,7 +131,7 @@
     }
 
     input, select { min-height: 42px; padding: 9px 11px; }
-    textarea { min-height: 310px; padding: 13px; resize: vertical; font-family: "JetBrains Mono", "SFMono-Regular", monospace; font-size: 12.5px; line-height: 1.55; }
+    textarea { min-height: 240px; padding: 13px; resize: vertical; font-family: "JetBrains Mono", "SFMono-Regular", monospace; font-size: 12.5px; line-height: 1.55; }
     input:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.11); }
     input.invalid, textarea.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196, 59, 69, 0.08); }
 
@@ -160,9 +160,36 @@
     .btn-danger { color: var(--danger); }
     .btn-small { min-height: 32px; padding: 6px 10px; font-size: 12px; }
 
-    .progress-line { position: relative; height: 3px; overflow: hidden; border-radius: 999px; background: #e7eeeb; }
-    .progress-line::after { content: ""; position: absolute; inset: 0; width: 36%; border-radius: inherit; background: var(--accent); transform: translateX(-100%); animation: slide 1.1s ease-in-out infinite; }
-    @keyframes slide { to { transform: translateX(380%); } }
+    .advanced { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+    .advanced > summary { padding: 11px 13px; cursor: pointer; font-weight: 600; list-style: none; }
+    .advanced > summary::-webkit-details-marker { display: none; }
+    .advanced > summary::before { content: "▸ "; color: var(--muted); }
+    .advanced[open] > summary::before { content: "▾ "; }
+    .advanced-body { padding: 0 13px 13px; }
+    .advanced-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .advanced-note code { padding: 1px 5px; border-radius: 5px; background: #eef2f1; font-family: "JetBrains Mono", monospace; font-size: 11px; }
+    .check-row { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; }
+    .check-row input { width: 16px; min-height: 16px; margin: 2px 0 0; flex: none; accent-color: var(--accent); }
+    .check-row span { display: grid; gap: 2px; font-weight: 600; }
+    .check-row small { color: var(--muted); font-size: 12px; font-weight: 400; }
+
+    /* 媒体面板 */
+    .media-panel { padding: 18px; border-bottom: 1px solid var(--line); }
+    .media-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .media-title { font-weight: 600; }
+    .media-count { color: var(--muted); font-size: 11px; }
+    .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 12px; }
+    .media-card { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+    .media-frame { position: relative; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #eef2f1; aspect-ratio: 4 / 3; }
+    .media-frame img, .media-frame video { display: block; width: 100%; height: 100%; object-fit: contain; background: #0f1512; }
+    .media-frame.is-failed { padding: 12px; color: var(--muted); font-size: 11.5px; text-align: center; line-height: 1.5; }
+    .media-badge { position: absolute; top: 6px; left: 6px; z-index: 1; padding: 2px 7px; border-radius: 999px; background: rgba(29, 40, 36, 0.82); color: #fff; font-size: 10px; font-weight: 600; }
+    .media-meta { display: grid; gap: 2px; min-width: 0; }
+    .media-path { overflow: hidden; color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .media-info { color: var(--ink); font-family: "JetBrains Mono", monospace; font-size: 11px; }
+    .media-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .media-btn { flex: 1; min-height: 28px; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; color: var(--ink); font-size: 11.5px; font-weight: 600; }
+    .media-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
 
     .response-text-panel { padding: 18px; border-bottom: 1px solid var(--line); background: var(--panel-soft); }
     .response-text-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
@@ -200,12 +227,15 @@
     .curl-box { padding: 16px; background: var(--panel-soft); }
     .curl-box pre { min-height: 260px; border-radius: 10px; }
 
-    .notice { display: none; margin-bottom: 14px; padding: 11px 12px; border-radius: 10px; font-size: 12px; }
+    .notice { display: none; margin-bottom: 14px; padding: 11px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
     .notice.visible { display: block; }
     .notice-error { border: 1px solid #f1c8cc; background: var(--danger-soft); color: var(--danger); }
     .notice-warning { border: 1px solid #ecd6a8; background: var(--warning-soft); color: var(--warning); }
     .toast { position: fixed; left: 50%; bottom: 24px; z-index: 10; padding: 10px 14px; border-radius: 999px; background: var(--code); color: white; box-shadow: var(--shadow); opacity: 0; transform: translate(-50%, 10px); pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }
     .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    .footer { margin-top: 22px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .footer a { color: var(--accent-dark); }
 
     @media (max-width: 860px) {
       .shell { width: min(100% - 22px, 720px); padding-top: 22px; }
@@ -221,6 +251,7 @@
       .url-row { grid-template-columns: 1fr; }
       .method-chip { min-height: 36px; }
       .header-row { grid-template-columns: 1fr; gap: 3px; }
+      .media-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     }
   </style>
 </head>
@@ -228,84 +259,105 @@
   <main class="shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow"><span class="eyebrow-dot"></span> Local POST Lab</div>
+        <span class="eyebrow"><span class="eyebrow-dot"></span>Local POST Lab</span>
         <h1>通用 POST 接口测试</h1>
-        <p class="lead">填写目标地址、认证信息与 JSON 请求体，发送 POST 请求并查看响应文本、状态码、耗时、响应头与原始返回。</p>
+        <p class="lead">填目标地址、认证信息与 JSON 请求体，由本机 server.py 直接发出，不受浏览器跨域限制。响应文本、图片视频、状态码、耗时、响应头与原始返回都在这里看。</p>
       </div>
-      <div class="privacy">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        API Key 仅保存在当前页面内存
-      </div>
+      <span class="privacy">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        API Key 只在本机内存里
+      </span>
     </header>
 
     <section class="workspace">
-      <div class="stack">
-        <section class="panel">
-          <div class="panel-head">
-            <h2 class="panel-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h10"></path><path d="M14 7l4-4"></path><path d="m18 3-4 4"></path><path d="M20 17H10"></path><path d="m6 17-4 4"></path><path d="m2 21 4-4"></path></svg>
-              请求配置
-            </h2>
-          </div>
-          <div class="panel-body">
-            <div class="field">
-              <label class="field-label" for="url"><span>目标 URL</span><span class="hint">POST</span></label>
-              <div class="url-row">
-                <input id="url" type="url" spellcheck="false" autocomplete="url" placeholder="https://example.com/api">
-                <span class="method-chip">POST</span>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="field">
-                <label class="field-label" for="authMode">认证方式</label>
-                <select id="authMode">
-                  <option value="none">不发送</option>
-                  <option value="x-api-key">x-api-key</option>
-                  <option value="bearer">Authorization: Bearer</option>
-                </select>
-              </div>
-              <div class="field">
-                <label class="field-label" for="timeout"><span>超时时间</span><span class="hint">1–300 秒</span></label>
-                <input id="timeout" type="number" min="1" max="300" value="120">
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="field-label" for="apiKey"><span>API Key</span><button class="btn btn-small" id="toggleKey" type="button">显示</button></label>
-              <input id="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="仅在本次页面会话中使用，不会写入文件">
-            </div>
-
-            <div class="field">
-              <label class="field-label" for="headers"><span>额外 Headers</span><span class="hint">JSON 对象，可留空</span></label>
-              <textarea id="headers" style="min-height:94px" spellcheck="false" placeholder="可留空，例如 {&quot;Accept&quot;: &quot;application/json&quot;}"></textarea>
-            </div>
-
-            <div class="field">
-              <label class="field-label" for="body"><span>请求 JSON</span><span class="hint" id="jsonState">可为空</span></label>
-              <textarea id="body" spellcheck="false" placeholder="可留空；填写后必须是合法 JSON"></textarea>
-            </div>
-
-            <div class="actions">
-              <button class="btn btn-primary" id="send" type="button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
-                发送请求
-              </button>
-              <button class="btn" id="cancel" type="button" disabled>取消</button>
-              <button class="btn btn-danger" id="clearKey" type="button">清空密钥</button>
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 17h16M4 12h16M4 7h10"></path></svg>
+            请求配置
+          </h2>
+          <button class="btn btn-small" id="shareLink" type="button">复制分享链接</button>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label class="field-label" for="url"><span>目标 URL</span><span class="hint">POST</span></label>
+            <div class="url-row">
+              <input id="url" type="url" spellcheck="false" autocomplete="url" placeholder="https://example.com/api">
+              <span class="method-chip">POST</span>
             </div>
           </div>
-        </section>
-      </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label class="field-label" for="authMode"><span>认证方式</span></label>
+              <select id="authMode">
+                <option value="none">不发送</option>
+                <option value="x-api-key">x-api-key</option>
+                <option value="bearer">Authorization: Bearer</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="timeout"><span>超时时间</span><span class="hint">1–300 秒</span></label>
+              <input id="timeout" type="number" min="1" max="300" value="120">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="apiKey"><span>API Key</span><button class="btn btn-small" id="toggleKey" type="button">显示</button></label>
+            <input id="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="只存在当前页面内存，不上传任何服务器">
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="headers"><span>额外 Headers</span><span class="hint">JSON 对象，可留空</span></label>
+            <textarea id="headers" style="min-height:94px" spellcheck="false" placeholder="可留空，例如 {&quot;Accept&quot;: &quot;application/json&quot;}"></textarea>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="body"><span>请求 JSON</span><span class="hint" id="jsonState">可为空</span></label>
+            <textarea id="body" spellcheck="false" placeholder="可留空；填写后必须是合法 JSON"></textarea>
+          </div>
+
+          <details class="advanced" id="advanced">
+            <summary>高级：TLS 证书</summary>
+            <div class="advanced-body">
+              <label class="check-row" for="verifyTls">
+                <input id="verifyTls" type="checkbox" checked>
+                <span>校验 TLS 证书<small>目标接口用自签名证书时取消勾选</small></span>
+              </label>
+              <p class="advanced-note">
+                本地版由 <code>server.py</code> 直接发请求，<strong>不受浏览器跨域限制</strong>，接口不支持 CORS 也能测。<br>
+                请求只从这台机器发出，不经过任何第三方服务器。
+              </p>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button class="btn btn-primary" id="send" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
+              发送请求
+            </button>
+            <button class="btn" id="cancel" type="button" disabled>取消</button>
+            <button class="btn btn-danger" id="clearKey" type="button">清空密钥</button>
+          </div>
+        </div>
+      </section>
 
       <section class="panel result-panel">
         <div class="panel-head">
           <h2 class="panel-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16v16H4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path><path d="M8 17h3"></path></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
             响应结果
           </h2>
           <button class="btn btn-small" id="copyResponse" type="button" disabled>复制响应</button>
         </div>
+
+        <section class="media-panel" id="mediaPanel" hidden>
+          <div class="media-head">
+            <span class="media-title">图片 / 视频</span>
+            <span class="media-count" id="mediaCount">0 项</span>
+          </div>
+          <div class="media-grid" id="mediaGrid"></div>
+        </section>
 
         <div class="response-text-panel">
           <div class="response-text-head">
@@ -329,11 +381,11 @@
             </div>
           </div>
 
-          <div class="tabs" role="tablist">
-            <button class="tab active" type="button" data-tab="formatted">格式化</button>
-            <button class="tab" type="button" data-tab="raw">原始正文</button>
-            <button class="tab" type="button" data-tab="headers">响应头</button>
-            <button class="tab" type="button" data-tab="curl">cURL</button>
+          <div class="tabs">
+            <button class="tab active" data-tab="formatted" type="button">格式化</button>
+            <button class="tab" data-tab="raw" type="button">原始正文</button>
+            <button class="tab" data-tab="headers" type="button">响应头</button>
+            <button class="tab" data-tab="curl" type="button">cURL</button>
           </div>
           <div id="tab-formatted" class="tab-content active"><pre id="formattedOutput"></pre></div>
           <div id="tab-raw" class="tab-content"><pre id="rawOutput"></pre></div>
@@ -342,6 +394,13 @@
         </div>
       </section>
     </section>
+
+    <p class="footer">
+      本地版：请求由本机 <code>server.py</code> 发出，只监听 127.0.0.1，不经过任何第三方服务器。<br>
+      要发给别人直接打开，用在线版
+      <a href="https://b2olzvn7k34aa.space.mcode.cn" target="_blank" rel="noopener">网页版</a>；源码见
+      <a href="https://github.com/Yzero123/post-api-tester" target="_blank" rel="noopener">GitHub</a>。
+    </p>
   </main>
 
   <div class="toast" id="toast" role="status"></div>
@@ -351,19 +410,43 @@
     let controller = null;
     let latestResultText = "";
     let toastTimer = null;
+    let objectUrls = [];
+    const blobCache = new Map();
+
+    const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico|tiff?)$/i;
+    const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv|ogg|mkv|avi|flv|m3u8)$/i;
+    // 只有带媒体语义的 key 才进入探测；裸 url / uri / link 太常见（回显请求地址就会误判）
+    const MEDIA_KEY = /(image|img|video|media|cover|poster|thumbnail|thumb|asset|output|file|picture|photo|src)/i;
+    // 位于 data[0] / images[1] 这类媒体数组里的地址，即使没有扩展名也值得探测
+    const MEDIA_ARRAY = /(data|images|videos|outputs|results|items|files|assets|list)\[\d+\]/i;
+    const B64_KEY = /^(b64_json|b64|base64|image_base64|video_base64|imageBase64|videoBase64|image_data|data)$/i;
+    // server.py 会拒绝这些请求头，前端先剔除并在结果里说明
+    const BLOCKED_HEADERS = new Set(["host", "content-length", "connection", "transfer-encoding"]);
 
     function showToast(message) {
       const toast = el("toast");
       toast.textContent = message;
       toast.classList.add("visible");
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove("visible"), 1800);
+      toastTimer = setTimeout(() => toast.classList.remove("visible"), 2000);
     }
 
     function formatBytes(bytes) {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+      if (!bytes && bytes !== 0) return "—";
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / 1024 / 1024).toFixed(2) + " MB";
+    }
+
+    function formatDuration(seconds) {
+      if (!isFinite(seconds)) return "";
+      const m = Math.floor(seconds / 60);
+      const s = Math.round(seconds % 60);
+      return m + ":" + String(s).padStart(2, "0");
+    }
+
+    function isBlockedHeader(name) {
+      return BLOCKED_HEADERS.has(String(name).toLowerCase());
     }
 
     function setJSONState() {
@@ -393,31 +476,30 @@
       if (!text) return {};
       const parsed = JSON.parse(text);
       if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-        throw new Error("额外 Headers 必须是 JSON 对象。 ");
+        throw new Error("额外 Headers 必须是 JSON 对象。");
       }
       return parsed;
     }
 
     function shellQuote(value) {
-      return `'${String(value).replaceAll("'", `'"'"'`)}'`;
+      return "'" + String(value).replaceAll("'", "'\"'\"'") + "'";
     }
 
     function makeCurl(payload) {
       const parts = [
         "curl --request POST",
-        `  --url ${shellQuote(el("url").value.trim())}`,
-        `  --header ${shellQuote("Content-Type: application/json")}`,
+        "  --url " + shellQuote(payload.url),
+        "  --header " + shellQuote("Content-Type: application/json")
       ];
-      const headers = payload.headers;
-      for (const [key, value] of Object.entries(headers)) {
-        parts.push(`  --header ${shellQuote(`${key}: ${value}`)}`);
+      for (const [key, value] of Object.entries(payload.headers)) {
+        parts.push("  --header " + shellQuote(key + ": " + value));
       }
       if (payload.authMode === "x-api-key") {
         parts.push('  --header "x-api-key: $POST_TEST_API_KEY"');
       } else if (payload.authMode === "bearer") {
         parts.push('  --header "Authorization: Bearer $POST_TEST_API_KEY"');
       }
-      parts.push(`  --data-raw ${shellQuote(el("body").value)}`);
+      parts.push("  --data-raw " + shellQuote(payload.body));
       return parts.join(" \\\n");
     }
 
@@ -453,7 +535,7 @@
         const contentText = payload.content
           .map((block) => {
             if (typeof block === "string") return block;
-            if (block?.type === "text") return displayText(block.text);
+            if (block && block.type === "text") return displayText(block.text);
             return "";
           })
           .filter((text) => text.trim())
@@ -461,12 +543,14 @@
         if (contentText.trim()) return { text: contentText, source: "content[].text" };
       }
 
-      const choiceContent = payload.choices?.[0]?.message?.content;
+      const choiceContent = payload.choices && payload.choices[0] && payload.choices[0].message
+        ? payload.choices[0].message.content
+        : undefined;
       const choiceText = typeof choiceContent === "string"
         ? choiceContent
         : Array.isArray(choiceContent)
           ? choiceContent
-            .map((block) => block?.type === "text" ? displayText(block.text) : "")
+            .map((block) => (block && block.type === "text" ? displayText(block.text) : ""))
             .filter((text) => text.trim())
             .join("\n\n")
           : "";
@@ -475,40 +559,329 @@
       return { text: "", source: "未找到" };
     }
 
-    function setResponseText(text, source, isError = false) {
+    function setResponseText(text, source, isError) {
       const box = el("responseText");
       box.textContent = text;
       box.classList.toggle("is-empty", !text);
-      box.classList.toggle("is-error", isError);
+      box.classList.toggle("is-error", Boolean(isError));
       el("responseTextSource").textContent = source;
     }
 
+    /* ---------- 媒体识别 ---------- */
+
+    function guessMimeFromBase64(value) {
+      const head = value.replace(/\s+/g, "").slice(0, 44);
+      if (head.startsWith("iVBORw0KGgo")) return "image/png";
+      if (head.startsWith("/9j/")) return "image/jpeg";
+      if (head.startsWith("R0lGOD")) return "image/gif";
+      if (head.startsWith("UklGR")) return "image/webp";
+      if (head.startsWith("Qk")) return "image/bmp";
+      if (head.startsWith("PHN2Zw") || head.startsWith("PD94bWw")) return "image/svg+xml";
+      try {
+        const bin = atob(head.slice(0, 24));
+        if (bin.slice(4, 8) === "ftyp") return "video/mp4";
+        if (bin.charCodeAt(0) === 0x1a && bin.charCodeAt(1) === 0x45) return "video/webm";
+      } catch (error) {
+        return null;
+      }
+      return null;
+    }
+
+    function collectMedia(payload) {
+      const found = [];
+      const seen = new Set();
+
+      function add(kind, src, path, origin) {
+        // data URI 只拿逗号后的载荷做去重键，避免同一份数据因 media_type 不同被算两次
+        const payload = src.startsWith("data:") ? src.slice(src.indexOf(",") + 1) : src;
+        const key = kind + "|" + payload.length + "|" + payload.slice(0, 160);
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push({ kind: kind, src: src, path: path, origin: origin });
+      }
+
+      function handleString(value, path, keyName) {
+        const dataMatch = /^data:(image|video)\/([a-z0-9.+-]+);base64,([\s\S]+)$/i.exec(value);
+        if (dataMatch) {
+          add(dataMatch[1].toLowerCase(), value, path, "data-uri");
+          return;
+        }
+        if (/^https?:\/\//i.test(value)) {
+          const clean = value.split(/[?#]/)[0];
+          if (IMAGE_EXT.test(clean)) {
+            add("image", value, path, "url");
+          } else if (VIDEO_EXT.test(clean)) {
+            add("video", value, path, "url");
+          } else if ((keyName && MEDIA_KEY.test(keyName)) || MEDIA_ARRAY.test(path)) {
+            add("probe", value, path, "url");
+          }
+          return;
+        }
+        if (keyName && B64_KEY.test(keyName) && value.length > 64
+          && /^[A-Za-z0-9+/\s]+={0,2}$/.test(value.slice(0, 4096))) {
+          const mime = guessMimeFromBase64(value);
+          if (mime) {
+            add(mime.startsWith("video") ? "video" : "image",
+              "data:" + mime + ";base64," + value.replace(/\s+/g, ""), path, "base64");
+          }
+        }
+      }
+
+      function walk(node, path, keyName) {
+        if (node === null || node === undefined) return;
+        if (typeof node === "string") {
+          handleString(node, path, keyName);
+          return;
+        }
+        if (Array.isArray(node)) {
+          node.forEach((item, index) => walk(item, path + "[" + index + "]", keyName));
+          return;
+        }
+        if (typeof node === "object") {
+          // 已按结构化方式消费掉的字段，不再走通用遍历，否则同一个 source 会被识别两次
+          const consumed = new Set();
+          const source = node.source;
+          if (source && typeof source === "object") {
+            if (source.type === "base64" && typeof source.data === "string") {
+              const mime = source.media_type || guessMimeFromBase64(source.data) || "image/png";
+              add(String(mime).startsWith("video") ? "video" : "image",
+                "data:" + mime + ";base64," + source.data.replace(/\s+/g, ""), path, "base64");
+              consumed.add("source");
+            } else if (source.type === "url" && typeof source.url === "string") {
+              add("probe", source.url, path, "url");
+              consumed.add("source");
+            }
+          }
+          for (const key of Object.keys(node)) {
+            if (consumed.has(key)) continue;
+            walk(node[key], path ? path + "." + key : key, key);
+          }
+        }
+      }
+
+      walk(payload, "", "");
+      return found;
+    }
+
+    function base64ToObjectUrl(base64, mime) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      objectUrls.push(url);
+      return url;
+    }
+
+    function openableSrc(src) {
+      if (!src.startsWith("data:")) return src;
+      if (blobCache.has(src)) return blobCache.get(src);
+      const match = /^data:([^;,]+)[;,]/.exec(src);
+      const mime = match ? match[1] : "application/octet-stream";
+      const base64 = src.slice(src.indexOf(",") + 1);
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      blobCache.set(src, url);
+      objectUrls.push(url);
+      return url;
+    }
+
+    function mediaFilename(item, index) {
+      if (item.filename) return item.filename;
+      if (item.src.startsWith("data:")) {
+        const mime = /^data:([^;,]+)/.exec(item.src)[1];
+        const ext = (mime.split("/")[1] || "bin").replace("svg+xml", "svg");
+        return "media-" + (index + 1) + "." + ext;
+      }
+      try {
+        const parsed = new URL(item.src);
+        const base = decodeURIComponent(parsed.pathname.split("/").pop() || "");
+        if (base && /\.[a-z0-9]{2,5}$/i.test(base)) return base;
+      } catch (error) {
+        /* 落到默认名 */
+      }
+      return "media-" + (index + 1) + "." + (item.kind === "video" ? "mp4" : "png");
+    }
+
+    function triggerDownload(href, filename) {
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = filename;
+      link.rel = "noopener";
+      document.body.append(link);
+      link.click();
+      link.remove();
+    }
+
+    async function downloadMedia(item, index) {
+      const filename = mediaFilename(item, index);
+      try {
+        const response = await fetch(item.src);
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const blob = await response.blob();
+        const href = URL.createObjectURL(blob);
+        objectUrls.push(href);
+        triggerDownload(href, filename);
+        showToast("已开始下载 " + filename);
+      } catch (error) {
+        window.open(openableSrc(item.src), "_blank", "noopener");
+        showToast("已在新标签打开，可右键另存为");
+      }
+    }
+
+    function buildMediaCard(item, index) {
+      const card = document.createElement("div");
+      card.className = "media-card";
+
+      const frame = document.createElement("div");
+      frame.className = "media-frame";
+
+      const badge = document.createElement("span");
+      badge.className = "media-badge";
+      badge.textContent = item.kind === "probe" ? "探测" : item.kind === "video" ? "视频" : "图片";
+      frame.append(badge);
+
+      const meta = document.createElement("div");
+      meta.className = "media-meta";
+      const pathLine = document.createElement("div");
+      pathLine.className = "media-path";
+      pathLine.textContent = item.path || "(根)";
+      pathLine.title = item.path || "";
+      const infoLine = document.createElement("div");
+      infoLine.className = "media-info";
+      infoLine.textContent = "加载中…";
+      meta.append(pathLine, infoLine);
+
+      const actions = document.createElement("div");
+      actions.className = "media-actions";
+
+      const openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "media-btn";
+      openBtn.textContent = "打开";
+      openBtn.addEventListener("click", () => window.open(openableSrc(item.src), "_blank", "noopener"));
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "media-btn";
+      copyBtn.textContent = "复制链接";
+      copyBtn.addEventListener("click", async () => {
+        const text = item.src.startsWith("data:") || item.src.startsWith("blob:")
+          ? "(本地生成的预览，没有外部链接)"
+          : item.src;
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast("链接已复制");
+        } catch (error) {
+          showToast("复制失败，请手动选中");
+        }
+      });
+
+      const downloadBtn = document.createElement("button");
+      downloadBtn.type = "button";
+      downloadBtn.className = "media-btn";
+      downloadBtn.textContent = "下载";
+      downloadBtn.addEventListener("click", () => downloadMedia(item, index));
+
+      actions.append(openBtn, copyBtn, downloadBtn);
+      card.append(frame, meta, actions);
+
+      const attempts = item.kind === "probe" ? ["image", "video"] : [item.kind];
+      let cursor = 0;
+
+      function showFailed() {
+        frame.classList.add("is-failed");
+        const text = document.createElement("div");
+        text.textContent = item.origin === "url"
+          ? "无法加载：链接可能已过期或需要鉴权"
+          : "无法加载";
+        frame.replaceChildren(badge, text);
+        infoLine.textContent = "预览失败";
+      }
+
+      function attempt() {
+        if (cursor >= attempts.length) {
+          showFailed();
+          return;
+        }
+        const kind = attempts[cursor];
+        cursor += 1;
+        const node = document.createElement(kind === "video" ? "video" : "img");
+        node.addEventListener("error", attempt, { once: true });
+        if (kind === "video") {
+          node.controls = true;
+          node.preload = "metadata";
+          node.playsInline = true;
+          node.addEventListener("loadedmetadata", () => {
+            infoLine.textContent = node.videoWidth + "×" + node.videoHeight + " · " + formatDuration(node.duration);
+          }, { once: true });
+        } else {
+          node.loading = "lazy";
+          node.alt = item.path || "响应图片";
+          node.addEventListener("load", () => {
+            infoLine.textContent = node.naturalWidth + "×" + node.naturalHeight;
+          }, { once: true });
+        }
+        node.src = item.src;
+        badge.textContent = kind === "video" ? "视频" : "图片";
+        frame.replaceChildren(badge, node);
+      }
+
+      attempt();
+      return card;
+    }
+
+    function renderMedia(items) {
+      const panel = el("mediaPanel");
+      const grid = el("mediaGrid");
+      grid.replaceChildren();
+      if (!items || !items.length) {
+        panel.hidden = true;
+        el("mediaCount").textContent = "0 项";
+        return;
+      }
+      panel.hidden = false;
+      el("mediaCount").textContent = items.length + " 项";
+      items.forEach((item, index) => grid.append(buildMediaCard(item, index)));
+    }
+
+    function releaseObjectUrls() {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls = [];
+      blobCache.clear();
+    }
+
+    /* ---------- 渲染 ---------- */
+
     function renderResult(result, payload) {
-      el("result").hidden = false;
       el("result").hidden = false;
       el("copyResponse").disabled = false;
       if (window.matchMedia("(max-width: 860px)").matches) {
         el("result").scrollIntoView({ behavior: "smooth", block: "start" });
       }
-      el("statusPill").className = `status-pill ${statusClass(result.status)}`;
-      el("statusPill").textContent = `${result.status} ${result.statusText || ""}`.trim();
-      el("latency").textContent = `${result.elapsedMs} ms`;
-      el("sizeMetric").textContent = formatBytes(result.receivedBytes || 0);
+      el("statusPill").className = "status-pill " + statusClass(result.status);
+      el("statusPill").textContent = (result.status + " " + (result.statusText || "")).trim();
+      el("latency").textContent = result.elapsedMs + " ms";
+      el("sizeMetric").textContent = formatBytes(result.receivedBytes);
       el("typeMetric").textContent = result.contentType || "未返回";
       el("timeMetric").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
 
       const extracted = extractResponseText(result.json);
-      setResponseText(
-        extracted.text || "响应中未找到可提取文本",
-        extracted.source
-      );
+      setResponseText(extracted.text || "响应中未找到可提取文本", extracted.source);
+
+      const media = [];
+      if (result.directMedia) media.push(result.directMedia);
+      if (result.json) media.push.apply(media, collectMedia(result.json));
+      renderMedia(media);
 
       latestResultText = result.raw || "";
-      el("rawOutput").textContent = result.raw || "";
-      el("formattedOutput").textContent = typeof result.json === "string"
-        ? result.json
-        : JSON.stringify(result.json, null, 2);
+      el("rawOutput").textContent = result.raw || "（响应体是二进制内容，未按文本展示）";
+      el("formattedOutput").textContent = result.json
+        ? JSON.stringify(result.json, null, 2)
+        : (result.raw || "（非 JSON 响应）");
       el("curlOutput").textContent = makeCurl(payload);
+
       el("responseHeaders").replaceChildren();
       for (const [name, value] of result.headers || []) {
         const row = document.createElement("div");
@@ -522,31 +895,41 @@
         row.append(key, val);
         el("responseHeaders").append(row);
       }
-      if (result.finalUrl && result.finalUrl !== el("url").value.trim()) {
-        setNotice("warning", `发生跳转，最终地址：${result.finalUrl}`);
-      } else {
-        setNotice("", "");
+
+      const notes = [];
+      if (result.finalUrl && result.finalUrl !== payload.url) {
+        notes.push("发生跳转，最终地址：" + result.finalUrl);
       }
+      if (result.droppedHeaders && result.droppedHeaders.length) {
+        notes.push("本地服务不允许手动设置这些请求头，已忽略：" + result.droppedHeaders.join("、"));
+      }
+      if (result.bodyTooLarge) {
+        notes.push("响应体是二进制且超过 12 MB，已跳过内联预览。");
+      }
+      setNotice(notes.length ? "warning" : "", notes.join("\n"));
     }
 
-    function renderError(error) {
+    function renderError(message, detail) {
       el("result").hidden = false;
       el("copyResponse").disabled = false;
+      renderMedia([]);
       if (window.matchMedia("(max-width: 860px)").matches) {
         el("result").scrollIntoView({ behavior: "smooth", block: "start" });
       }
       el("statusPill").className = "status-pill status-error";
-      el("statusPill").textContent = "本地请求失败";
+      el("statusPill").textContent = "请求失败";
       el("latency").textContent = "— ms";
       el("sizeMetric").textContent = "—";
       el("typeMetric").textContent = "—";
       el("timeMetric").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-      setResponseText(error.error || "请求失败", "错误信息", true);
-      latestResultText = JSON.stringify(error, null, 2);
-      el("formattedOutput").textContent = latestResultText;
-      el("rawOutput").textContent = latestResultText;
+      setResponseText(message, "错误信息", true);
+      const full = detail ? message + "\n\n" + detail : message;
+      latestResultText = full;
+      el("formattedOutput").textContent = full;
+      el("rawOutput").textContent = full;
       el("responseHeaders").replaceChildren();
-      setNotice("error", error.error || "请求失败");
+      el("curlOutput").textContent = "";
+      setNotice("error", full);
     }
 
     function setBusy(busy) {
@@ -562,71 +945,231 @@
       }
     }
 
+    function collectOutHeaders(customHeaders, authMode, apiKey) {
+      const out = {};
+      const dropped = [];
+      for (const [key, value] of Object.entries(customHeaders)) {
+        if (isBlockedHeader(key)) {
+          dropped.push(key);
+          continue;
+        }
+        out[key] = String(value);
+      }
+      if (authMode === "x-api-key") out["x-api-key"] = apiKey;
+      if (authMode === "bearer") out["Authorization"] = "Bearer " + apiKey;
+      return { headers: out, dropped: dropped };
+    }
+
     async function sendRequest() {
       if (!setJSONState()) {
         showToast("请求 JSON 格式不正确");
         el("body").focus();
         return;
       }
-      let headers;
+
+      let customHeaders;
       try {
-        headers = parseHeaders();
+        customHeaders = parseHeaders();
       } catch (error) {
         showToast(error.message);
         el("headers").focus();
         return;
       }
-      if (el("authMode").value !== "none" && !el("apiKey").value.trim()) {
+
+      const url = el("url").value.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        showToast("请填写完整的 http:// 或 https:// 地址");
+        el("url").focus();
+        return;
+      }
+
+      const authMode = el("authMode").value;
+      const apiKey = el("apiKey").value.trim();
+      if (authMode !== "none" && !apiKey) {
         showToast("请先填写 API Key");
         el("apiKey").focus();
         return;
       }
 
+      const out = collectOutHeaders(customHeaders, authMode, apiKey);
+      const timeoutSeconds = Math.min(300, Math.max(1, Number(el("timeout").value) || 120));
+
       const payload = {
-        url: el("url").value.trim(),
-        apiKey: el("apiKey").value,
-        authMode: el("authMode").value,
-        headers,
-        body: el("body").value,
-        timeoutSeconds: Number(el("timeout").value),
-        verifyTls: true
+        url: url,
+        authMode: authMode,
+        headers: customHeaders,
+        body: el("body").value
       };
 
+      releaseObjectUrls();
       controller = new AbortController();
+      const timer = setTimeout(() => controller.abort("timeout"), (timeoutSeconds + 5) * 1000);
+
       setBusy(true);
       setResponseText("请求中…", "等待响应");
       el("result").hidden = false;
       setNotice("", "");
+
       try {
         const response = await fetch("/api/proxy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            url: url,
+            apiKey: apiKey,
+            authMode: authMode,
+            headers: out.headers,
+            body: payload.body,
+            timeoutSeconds: timeoutSeconds,
+            verifyTls: el("verifyTls").checked
+          }),
           signal: controller.signal
         });
-        const result = await response.json();
-        if (!response.ok) {
-          renderError(result);
-        } else {
-          renderResult(result, payload);
+
+        let result;
+        try {
+          result = await response.json();
+        } catch (error) {
+          renderError("本地服务返回了无法解析的内容", "HTTP " + response.status);
+          return;
         }
+
+        if (!result || result.ok !== true) {
+          renderError(
+            (result && result.error) || "本地服务没能完成这个请求",
+            result && result.detail ? result.detail : ""
+          );
+          return;
+        }
+
+        let directMedia = null;
+        const mime = (result.contentType || "").split(";")[0].trim();
+        if (result.bodyBase64 && /^(image|video)\//i.test(mime)) {
+          const ext = (mime.split("/")[1] || "bin").replace("svg+xml", "svg").replace("jpeg", "jpg");
+          directMedia = {
+            kind: mime.toLowerCase().startsWith("video") ? "video" : "image",
+            src: base64ToObjectUrl(result.bodyBase64, mime),
+            path: "响应体本身",
+            origin: "direct",
+            filename: "response." + ext
+          };
+        }
+
+        renderResult({
+          status: result.status,
+          statusText: result.statusText,
+          elapsedMs: result.elapsedMs,
+          receivedBytes: result.receivedBytes,
+          contentType: result.contentType,
+          finalUrl: result.finalUrl,
+          headers: result.headers,
+          droppedHeaders: out.dropped,
+          bodyTooLarge: result.bodyTooLarge,
+          raw: result.raw,
+          json: result.json,
+          directMedia: directMedia
+        }, payload);
       } catch (error) {
-        if (error.name === "AbortError") {
-          showToast("请求已取消");
+        if (error && error.name === "AbortError") {
+          if (controller && controller.signal.reason === "timeout") {
+            renderError("请求超时", "超过 " + timeoutSeconds + " 秒没有拿到响应。可以调大超时时间，或确认接口是否还在处理。");
+          } else {
+            showToast("请求已取消");
+          }
         } else {
-          renderError({ error: "无法连接本地服务。", detail: error.message });
+          renderError(
+            "本地服务没能完成这个请求",
+            "原始错误：" + (error && error.message ? error.message : String(error))
+              + "\n\n常见原因：\n"
+              + "1. server.py 已停止运行——重新双击「启动测试工具.command」。\n"
+              + "2. 地址写错、域名解析不了或服务不可达。\n"
+              + "3. 证书无效——展开「高级」取消勾选 TLS 校验再试。"
+          );
         }
       } finally {
+        clearTimeout(timer);
         setBusy(false);
         controller = null;
       }
     }
 
+        /* ---------- 分享链接（不含 API Key） ---------- */
+
+    function encodeConfig(config) {
+      const bytes = new TextEncoder().encode(JSON.stringify(config));
+      let binary = "";
+      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+    }
+
+    function decodeConfig(text) {
+      const padded = text.replaceAll("-", "+").replaceAll("_", "/");
+      const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    }
+
+    function currentConfig() {
+      return {
+        url: el("url").value,
+        authMode: el("authMode").value,
+        headers: el("headers").value,
+        body: el("body").value,
+        timeout: el("timeout").value,
+        verifyTls: el("verifyTls").checked
+      };
+    }
+
+    function applyConfig(config) {
+      if (!config || typeof config !== "object") return;
+      if (typeof config.url === "string") el("url").value = config.url;
+      if (typeof config.authMode === "string") el("authMode").value = config.authMode;
+      if (typeof config.headers === "string") el("headers").value = config.headers;
+      if (typeof config.body === "string") el("body").value = config.body;
+      if (config.timeout) el("timeout").value = config.timeout;
+      if (typeof config.verifyTls === "boolean") {
+        el("verifyTls").checked = config.verifyTls;
+        if (!config.verifyTls) el("advanced").open = true;
+      }
+      setJSONState();
+    }
+
+    // 本地版跑在 127.0.0.1，链接发给别人打不开，所以分享链接指向在线版
+    const SHARE_BASE = /^(127\.0\.0\.1|localhost|\[::1\])$/i.test(location.hostname)
+      ? "https://b2olzvn7k34aa.space.mcode.cn/"
+      : location.origin + location.pathname;
+
+    el("shareLink").addEventListener("click", async () => {
+      const encoded = encodeConfig(currentConfig());
+      const link = SHARE_BASE + "#c=" + encoded;
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast("在线版链接已复制（不含 API Key）");
+      } catch (error) {
+        showToast("复制失败，请手动复制地址栏");
+      }
+      location.hash = "c=" + encoded;
+    });
+
+    if (location.hash.startsWith("#c=")) {
+      try {
+        applyConfig(decodeConfig(location.hash.slice(3)));
+      } catch (error) {
+        showToast("分享链接解析失败");
+      }
+    }
+
+    /* ---------- 事件绑定 ---------- */
+
     setJSONState();
+    renderMedia([]);
 
     el("body").addEventListener("input", setJSONState);
     el("send").addEventListener("click", sendRequest);
-    el("cancel").addEventListener("click", () => controller?.abort());
+    el("cancel").addEventListener("click", () => {
+      if (controller) controller.abort("cancel");
+    });
     el("clearKey").addEventListener("click", () => {
       el("apiKey").value = "";
       showToast("API Key 已从页面内存清空");
@@ -639,8 +1182,12 @@
       el("toggleKey").textContent = visible ? "显示" : "隐藏";
     });
     el("copyResponse").addEventListener("click", async () => {
-      await navigator.clipboard.writeText(latestResultText);
-      showToast("响应已复制");
+      try {
+        await navigator.clipboard.writeText(latestResultText);
+        showToast("响应已复制");
+      } catch (error) {
+        showToast("复制失败");
+      }
     });
 
     document.querySelectorAll(".tab").forEach((tab) => {
@@ -648,7 +1195,7 @@
         document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
         document.querySelectorAll(".tab-content").forEach((item) => item.classList.remove("active"));
         tab.classList.add("active");
-        el(`tab-${tab.dataset.tab}`).classList.add("active");
+        el("tab-" + tab.dataset.tab).classList.add("active");
       });
     });
 
