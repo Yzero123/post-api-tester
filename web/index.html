@@ -324,6 +324,7 @@
                 绝大多数接口（minimax、OpenAI 等）都允许浏览器跨域直连，这一项留空即可。<br>
                 只有目标接口没返回 <code>Access-Control-Allow-Origin</code> 时才需要填。<br>
                 填法：前缀里含 <code>{url}</code> 就替换成编码后的地址，否则直接把编码后的地址接在后面。<br>
+                没有代理？用 Cloudflare Worker 免费搭一个，脚本见仓库 <code>proxy/cloudflare-worker.js</code>。<br>
                 <strong>注意</strong>：走代理时你的 API Key 会经过那台代理服务器，请只填自己可控的代理。
               </p>
             </div>
@@ -889,7 +890,8 @@
       }
 
       const notes = [];
-      if (result.finalUrl && result.finalUrl !== payload.url) {
+      // 走代理时 response.url 是代理地址，和目标地址天然不同，不能当成跳转
+      if (!result.usedProxy && result.finalUrl && result.finalUrl !== payload.url) {
         notes.push("发生跳转，最终地址：" + result.finalUrl);
       }
       if (result.droppedHeaders && result.droppedHeaders.length) {
@@ -1064,6 +1066,7 @@
           headers: headerPairs,
           hiddenHeaderCount: hiddenHeaderCount,
           droppedHeaders: dropped,
+          usedProxy: usedProxy,
           raw: raw,
           json: json,
           directMedia: directMedia
