@@ -132,12 +132,13 @@
 
     input, select { min-height: 42px; padding: 9px 11px; }
     textarea { min-height: 240px; padding: 13px; resize: vertical; font-family: "JetBrains Mono", "SFMono-Regular", monospace; font-size: 12.5px; line-height: 1.55; }
+    textarea:disabled { background: #eef2f1; color: var(--muted); cursor: not-allowed; }
     input:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.11); }
     input.invalid, textarea.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196, 59, 69, 0.08); }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .url-row { display: grid; grid-template-columns: 1fr auto; gap: 9px; }
-    .method-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 64px; border-radius: 10px; background: var(--code); color: white; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; }
+    .url-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; }
+    .method-select { min-width: 98px; font-family: "JetBrains Mono", monospace; font-weight: 600; }
 
     .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 16px; }
     .btn {
@@ -206,6 +207,8 @@
     .status-http { background: #eef2f1; color: #45534e; }
     .status-error { background: var(--danger-soft); color: var(--danger); }
     .latency { color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 12px; }
+    .poll-status { margin-bottom: 13px; padding: 9px 12px; border: 1px solid #ecd6a8; border-radius: 10px; background: var(--warning-soft); color: var(--warning); font-size: 12px; font-weight: 600; }
+    .poll-status[hidden] { display: none; }
 
     .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--line); }
     .metric { padding: 11px 12px; background: var(--panel-soft); }
@@ -249,7 +252,7 @@
       .panel-body, .result-head { padding: 14px; }
       .grid-2, .metrics { grid-template-columns: 1fr; }
       .url-row { grid-template-columns: 1fr; }
-      .method-chip { min-height: 36px; }
+      .method-select { min-height: 36px; }
       .header-row { grid-template-columns: 1fr; gap: 3px; }
       .media-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     }
@@ -261,7 +264,7 @@
       <div>
         <span class="eyebrow"><span class="eyebrow-dot"></span>Local POST Lab</span>
         <h1>通用 POST 接口测试</h1>
-        <p class="lead">填目标地址、认证信息与 JSON 请求体，由本机 server.py 直接发出，不受浏览器跨域限制。响应文本、图片视频、状态码、耗时、响应头与原始返回都在这里看。</p>
+        <p class="lead">填目标地址、认证信息与请求体，由本机 server.py 直接发出，不受浏览器跨域限制。支持 GET 查任务与自动轮询，响应文本、图片视频、状态码、耗时、响应头都在这里看。</p>
       </div>
       <span class="privacy">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -280,10 +283,13 @@
         </div>
         <div class="panel-body">
           <div class="field">
-            <label class="field-label" for="url"><span>目标 URL</span><span class="hint">POST</span></label>
+            <label class="field-label" for="url"><span>目标 URL</span><span class="hint">GET / POST</span></label>
             <div class="url-row">
+              <select id="method" class="method-select" aria-label="请求方法">
+                <option value="POST" selected>POST</option>
+                <option value="GET">GET</option>
+              </select>
               <input id="url" type="url" spellcheck="false" autocomplete="url" placeholder="https://example.com/api">
-              <span class="method-chip">POST</span>
             </div>
           </div>
 
@@ -308,6 +314,11 @@
           </div>
 
           <div class="field">
+            <label class="field-label" for="query"><span>查询参数 Query</span><span class="hint" id="queryState">JSON 对象，可留空</span></label>
+            <textarea id="query" style="min-height:74px" spellcheck="false" placeholder="可留空，例如 {&quot;task_ids&quot;: &quot;123&quot;}；会自动拼到 URL 后面"></textarea>
+          </div>
+
+          <div class="field">
             <label class="field-label" for="headers"><span>额外 Headers</span><span class="hint">JSON 对象，可留空</span></label>
             <textarea id="headers" style="min-height:94px" spellcheck="false" placeholder="可留空，例如 {&quot;Accept&quot;: &quot;application/json&quot;}"></textarea>
           </div>
@@ -316,6 +327,31 @@
             <label class="field-label" for="body"><span>请求 JSON</span><span class="hint" id="jsonState">可为空</span></label>
             <textarea id="body" spellcheck="false" placeholder="可留空；填写后必须是合法 JSON"></textarea>
           </div>
+
+          <details class="advanced" id="pollBox" open>
+            <summary>自动轮询任务（异步接口查结果时用）</summary>
+            <div class="advanced-body">
+              <label class="check-row" for="poll">
+                <input id="poll" type="checkbox">
+                <span>启用自动轮询<small>每次拿到响应后按间隔重发，直到任务进入终态</small></span>
+              </label>
+              <div class="grid-2" style="margin-top:12px">
+                <div class="field">
+                  <label class="field-label" for="pollInterval"><span>间隔（秒）</span><span class="hint">2–60</span></label>
+                  <input id="pollInterval" type="number" min="2" max="60" value="5">
+                </div>
+                <div class="field">
+                  <label class="field-label" for="pollMax"><span>最多轮询次数</span><span class="hint">1–200</span></label>
+                  <input id="pollMax" type="number" min="1" max="200" value="60">
+                </div>
+              </div>
+              <p class="advanced-note">
+                识别规则：读取响应里的 <code>data[].status</code>、<code>tasks[].status</code> 或顶层 <code>status</code>；
+                全部变成 <code>succeeded</code> / <code>failed</code> / <code>canceled</code> 这类终态就停止。
+                找不到状态字段、或返回 4xx/5xx 时会立刻停下并说明原因。
+              </p>
+            </div>
+          </details>
 
           <details class="advanced" id="advanced">
             <summary>高级：TLS 证书</summary>
@@ -370,6 +406,7 @@
         <div id="result" hidden>
           <div class="result-head">
             <div id="notice" class="notice"></div>
+            <div id="pollStatus" class="poll-status" hidden></div>
             <div class="result-status">
               <span id="statusPill" class="status-pill status-http">等待中</span>
               <span id="latency" class="latency">— ms</span>
@@ -450,6 +487,14 @@
     }
 
     function setJSONState() {
+      if (el("method").value === "GET") {
+        el("body").disabled = true;
+        el("body").classList.remove("invalid");
+        el("jsonState").textContent = "GET 不发送请求体";
+        el("jsonState").style.color = "var(--muted)";
+        return true;
+      }
+      el("body").disabled = false;
       const text = el("body").value.trim();
       if (!text) {
         el("body").classList.remove("invalid");
@@ -471,6 +516,49 @@
       }
     }
 
+    function parseQuery() {
+      const text = el("query").value.trim();
+      if (!text) return {};
+      const parsed = JSON.parse(text);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+        throw new Error("查询参数必须是 JSON 对象。");
+      }
+      return parsed;
+    }
+
+    function setQueryState() {
+      const text = el("query").value.trim();
+      const hint = el("queryState");
+      if (!text) {
+        el("query").classList.remove("invalid");
+        hint.textContent = "JSON 对象，可留空";
+        hint.style.color = "var(--muted)";
+        return true;
+      }
+      try {
+        parseQuery();
+        el("query").classList.remove("invalid");
+        hint.textContent = "JSON 有效";
+        hint.style.color = "var(--accent-dark)";
+        return true;
+      } catch (error) {
+        el("query").classList.add("invalid");
+        hint.textContent = "JSON 无效";
+        hint.style.color = "var(--danger)";
+        return false;
+      }
+    }
+
+    function buildUrl(base, query) {
+      const entries = Object.entries(query || {})
+        .filter(([, value]) => value !== undefined && value !== null && String(value) !== "");
+      if (!entries.length) return base;
+      const search = entries
+        .map(([key, value]) => encodeURIComponent(key) + "=" + encodeURIComponent(String(value)))
+        .join("&");
+      return base + (base.includes("?") ? "&" : "?") + search;
+    }
+
     function parseHeaders() {
       const text = el("headers").value.trim();
       if (!text) return {};
@@ -487,7 +575,7 @@
 
     function makeCurl(payload) {
       const parts = [
-        "curl --request POST",
+        "curl --request " + payload.method,
         "  --url " + shellQuote(payload.url),
         "  --header " + shellQuote("Content-Type: application/json")
       ];
@@ -499,7 +587,9 @@
       } else if (payload.authMode === "bearer") {
         parts.push('  --header "Authorization: Bearer $POST_TEST_API_KEY"');
       }
-      parts.push("  --data-raw " + shellQuote(payload.body));
+      if (payload.method !== "GET" && payload.body) {
+        parts.push("  --data-raw " + shellQuote(payload.body));
+      }
       return parts.join(" \\\n");
     }
 
@@ -661,15 +751,6 @@
 
       walk(payload, "", "");
       return found;
-    }
-
-    function base64ToObjectUrl(base64, mime) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
-      objectUrls.push(url);
-      return url;
     }
 
     function openableSrc(src) {
@@ -945,6 +1026,9 @@
       }
     }
 
+    /* ---------- 单次请求（本地版：经 server.py 转发） ---------- */
+    const TRANSPORT_HINT = "1. server.py 已停止运行——重新双击「启动测试工具.command」。\n2. 地址写错、域名解析不了或服务不可达。\n3. 证书无效——展开「高级」取消勾选 TLS 校验再试。";
+
     function collectOutHeaders(customHeaders, authMode, apiKey) {
       const out = {};
       const dropped = [];
@@ -960,86 +1044,80 @@
       return { headers: out, dropped: dropped };
     }
 
-    async function sendRequest() {
-      if (!setJSONState()) {
-        showToast("请求 JSON 格式不正确");
-        el("body").focus();
-        return;
+    function base64ToObjectUrl(base64, mime) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      objectUrls.push(url);
+      return url;
+    }
+
+    function abortError() {
+      const error = new Error("aborted");
+      error.name = "AbortError";
+      return error;
+    }
+
+    function sleepWithAbort(ms, signal) {
+      return new Promise((resolve, reject) => {
+        if (signal && signal.aborted) {
+          reject(abortError());
+          return;
+        }
+        const timer = setTimeout(() => {
+          if (signal) signal.removeEventListener("abort", onAbort);
+          resolve();
+        }, ms);
+        function onAbort() {
+          clearTimeout(timer);
+          reject(abortError());
+        }
+        if (signal) signal.addEventListener("abort", onAbort, { once: true });
+      });
+    }
+
+    async function sendOnce(payload, outerSignal) {
+      const inner = new AbortController();
+      let timedOut = false;
+      const timer = setTimeout(() => { timedOut = true; inner.abort(); }, (payload.timeoutSeconds + 5) * 1000);
+      const onOuter = () => inner.abort();
+      if (outerSignal) {
+        if (outerSignal.aborted) inner.abort();
+        else outerSignal.addEventListener("abort", onOuter, { once: true });
       }
-
-      let customHeaders;
-      try {
-        customHeaders = parseHeaders();
-      } catch (error) {
-        showToast(error.message);
-        el("headers").focus();
-        return;
-      }
-
-      const url = el("url").value.trim();
-      if (!/^https?:\/\//i.test(url)) {
-        showToast("请填写完整的 http:// 或 https:// 地址");
-        el("url").focus();
-        return;
-      }
-
-      const authMode = el("authMode").value;
-      const apiKey = el("apiKey").value.trim();
-      if (authMode !== "none" && !apiKey) {
-        showToast("请先填写 API Key");
-        el("apiKey").focus();
-        return;
-      }
-
-      const out = collectOutHeaders(customHeaders, authMode, apiKey);
-      const timeoutSeconds = Math.min(300, Math.max(1, Number(el("timeout").value) || 120));
-
-      const payload = {
-        url: url,
-        authMode: authMode,
-        headers: customHeaders,
-        body: el("body").value
-      };
-
-      releaseObjectUrls();
-      controller = new AbortController();
-      const timer = setTimeout(() => controller.abort("timeout"), (timeoutSeconds + 5) * 1000);
-
-      setBusy(true);
-      setResponseText("请求中…", "等待响应");
-      el("result").hidden = false;
-      setNotice("", "");
 
       try {
         const response = await fetch("/api/proxy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            url: url,
-            apiKey: apiKey,
-            authMode: authMode,
-            headers: out.headers,
-            body: payload.body,
-            timeoutSeconds: timeoutSeconds,
+            url: payload.target,
+            method: payload.method,
+            apiKey: payload.apiKey,
+            authMode: payload.authMode,
+            headers: payload.outHeaders,
+            body: payload.method === "GET" ? "" : payload.body,
+            timeoutSeconds: payload.timeoutSeconds,
             verifyTls: el("verifyTls").checked
           }),
-          signal: controller.signal
+          signal: inner.signal
         });
 
         let result;
         try {
           result = await response.json();
         } catch (error) {
-          renderError("本地服务返回了无法解析的内容", "HTTP " + response.status);
-          return;
+          const parseError = new Error("本地服务返回了无法解析的内容（HTTP " + response.status + "）");
+          parseError.name = "LocalError";
+          throw parseError;
         }
 
         if (!result || result.ok !== true) {
-          renderError(
-            (result && result.error) || "本地服务没能完成这个请求",
-            result && result.detail ? result.detail : ""
-          );
-          return;
+          const localError = new Error((result && result.error) || "本地服务没能完成这个请求");
+          localError.name = "LocalError";
+          localError.detail = result && result.detail ? result.detail : "";
+          throw localError;
         }
 
         let directMedia = null;
@@ -1055,7 +1133,7 @@
           };
         }
 
-        renderResult({
+        return {
           status: result.status,
           statusText: result.statusText,
           elapsedMs: result.elapsedMs,
@@ -1063,31 +1141,198 @@
           contentType: result.contentType,
           finalUrl: result.finalUrl,
           headers: result.headers,
-          droppedHeaders: out.dropped,
-          bodyTooLarge: result.bodyTooLarge,
           raw: result.raw,
           json: result.json,
+          bodyTooLarge: result.bodyTooLarge,
           directMedia: directMedia
-        }, payload);
+        };
+      } catch (error) {
+        if (timedOut) {
+          const timeoutError = new Error("timeout");
+          timeoutError.name = "TimeoutError";
+          throw timeoutError;
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
+        if (outerSignal) outerSignal.removeEventListener("abort", onOuter);
+      }
+    }
+
+        /* ---------- 自动轮询 ---------- */
+    const TERMINAL_STATUS = new Set([
+      "succeeded", "success", "successful", "completed", "complete", "done", "finished",
+      "failed", "failure", "error", "canceled", "cancelled", "expired", "rejected", "timeout"
+    ]);
+
+    function extractTaskStatuses(payload) {
+      const out = [];
+      function push(value) {
+        if (typeof value === "string" && value.trim()) out.push(value.trim().toLowerCase());
+      }
+      if (!payload || typeof payload !== "object") return out;
+      for (const key of ["data", "tasks", "results", "items"]) {
+        const list = payload[key];
+        if (!Array.isArray(list)) continue;
+        for (const item of list) {
+          if (!item || typeof item !== "object") continue;
+          if (typeof item.status === "string") push(item.status);
+          else if (typeof item.state === "string") push(item.state);
+          else if (item.task && typeof item.task === "object" && typeof item.task.status === "string") push(item.task.status);
+        }
+      }
+      if (!out.length) {
+        if (typeof payload.status === "string") push(payload.status);
+        else if (typeof payload.state === "string") push(payload.state);
+      }
+      return out;
+    }
+
+    function isTerminalStatus(status) {
+      return TERMINAL_STATUS.has(status);
+    }
+
+    function setPollStatus(text) {
+      const box = el("pollStatus");
+      box.hidden = !text;
+      box.textContent = text || "";
+    }
+
+    /* ---------- 发送 ---------- */
+
+    async function sendRequest() {
+      if (!setJSONState()) {
+        showToast("请求 JSON 格式不正确");
+        el("body").focus();
+        return;
+      }
+      if (!setQueryState()) {
+        showToast("查询参数格式不正确");
+        el("query").focus();
+        return;
+      }
+
+      let customHeaders;
+      try {
+        customHeaders = parseHeaders();
+      } catch (error) {
+        showToast(error.message);
+        el("headers").focus();
+        return;
+      }
+
+      let query;
+      try {
+        query = parseQuery();
+      } catch (error) {
+        showToast(error.message);
+        el("query").focus();
+        return;
+      }
+
+      const rawUrl = el("url").value.trim();
+      if (!/^https?:\/\//i.test(rawUrl)) {
+        showToast("请填写完整的 http:// 或 https:// 地址");
+        el("url").focus();
+        return;
+      }
+
+      const method = el("method").value;
+      const authMode = el("authMode").value;
+      const apiKey = el("apiKey").value.trim();
+      if (authMode !== "none" && !apiKey) {
+        showToast("请先填写 API Key");
+        el("apiKey").focus();
+        return;
+      }
+
+      const target = buildUrl(rawUrl, query);
+      if (location.protocol === "https:" && target.toLowerCase().startsWith("http://")) {
+        renderError(
+          "浏览器阻止了这个请求",
+          "当前页面是 HTTPS，不能请求 http:// 地址（混合内容限制）。请改用 https:// 接口。"
+        );
+        return;
+      }
+
+      const out = collectOutHeaders(customHeaders, authMode, apiKey);
+      const timeoutSeconds = Math.min(300, Math.max(1, Number(el("timeout").value) || 120));
+      const poll = el("poll").checked;
+      const intervalSeconds = Math.min(60, Math.max(2, Number(el("pollInterval").value) || 5));
+      const maxAttempts = Math.min(200, Math.max(1, Number(el("pollMax").value) || 60));
+
+      const payload = {
+        method: method,
+        url: target,
+        target: target,
+        authMode: authMode,
+        headers: customHeaders,
+        outHeaders: out.headers,
+        droppedHeaders: out.dropped,
+        body: method === "GET" ? "" : el("body").value,
+        apiKey: apiKey,
+        timeoutSeconds: timeoutSeconds
+      };
+
+      releaseObjectUrls();
+      controller = new AbortController();
+      const signal = controller.signal;
+
+      setBusy(true);
+      setResponseText("请求中…", "等待响应");
+      el("result").hidden = false;
+      setNotice("", "");
+      setPollStatus("");
+
+      let attempt = 0;
+
+      try {
+        for (;;) {
+          attempt += 1;
+          const result = await sendOnce(payload, signal);
+          renderResult(result, payload);
+
+          if (!poll) break;
+
+          if (result.status >= 400) {
+            setPollStatus("HTTP " + result.status + "，已停止轮询");
+            break;
+          }
+
+          const statuses = extractTaskStatuses(result.json);
+          if (!statuses.length) {
+            setPollStatus("响应里没有任务状态字段，已停止轮询");
+            break;
+          }
+
+          const label = statuses.join("、");
+          if (statuses.every(isTerminalStatus)) {
+            setPollStatus("任务已结束：" + label + "（第 " + attempt + " 次轮询）");
+            break;
+          }
+          if (attempt >= maxAttempts) {
+            setPollStatus("已达最大轮询次数 " + maxAttempts + "，最后状态：" + label);
+            break;
+          }
+
+          setPollStatus("轮询 " + attempt + "/" + maxAttempts + " · 状态：" + label + " · " + intervalSeconds + " 秒后重试");
+          await sleepWithAbort(intervalSeconds * 1000, signal);
+        }
       } catch (error) {
         if (error && error.name === "AbortError") {
-          if (controller && controller.signal.reason === "timeout") {
-            renderError("请求超时", "超过 " + timeoutSeconds + " 秒没有拿到响应。可以调大超时时间，或确认接口是否还在处理。");
-          } else {
-            showToast("请求已取消");
-          }
+          if (poll && attempt > 0) setPollStatus("已取消轮询（第 " + attempt + " 次）");
+          showToast("请求已取消");
+        } else if (error && error.name === "TimeoutError") {
+          renderError("请求超时", "超过 " + timeoutSeconds + " 秒没有拿到响应。可以调大超时时间，或确认接口是否还在处理。");
+        } else if (error && error.name === "LocalError") {
+          renderError(error.message, error.detail || "");
         } else {
           renderError(
-            "本地服务没能完成这个请求",
-            "原始错误：" + (error && error.message ? error.message : String(error))
-              + "\n\n常见原因：\n"
-              + "1. server.py 已停止运行——重新双击「启动测试工具.command」。\n"
-              + "2. 地址写错、域名解析不了或服务不可达。\n"
-              + "3. 证书无效——展开「高级」取消勾选 TLS 校验再试。"
+            "没能完成这个请求",
+            "原始错误：" + (error && error.message ? error.message : String(error)) + "\n\n常见原因：\n" + TRANSPORT_HINT
           );
         }
       } finally {
-        clearTimeout(timer);
         setBusy(false);
         controller = null;
       }
@@ -1112,27 +1357,41 @@
 
     function currentConfig() {
       return {
+        method: el("method").value,
         url: el("url").value,
+        query: el("query").value,
         authMode: el("authMode").value,
         headers: el("headers").value,
         body: el("body").value,
         timeout: el("timeout").value,
+        poll: el("poll").checked,
+        pollInterval: el("pollInterval").value,
+        pollMax: el("pollMax").value,
         verifyTls: el("verifyTls").checked
       };
     }
 
     function applyConfig(config) {
       if (!config || typeof config !== "object") return;
+      if (typeof config.method === "string") el("method").value = config.method;
       if (typeof config.url === "string") el("url").value = config.url;
+      if (typeof config.query === "string") el("query").value = config.query;
       if (typeof config.authMode === "string") el("authMode").value = config.authMode;
       if (typeof config.headers === "string") el("headers").value = config.headers;
       if (typeof config.body === "string") el("body").value = config.body;
       if (config.timeout) el("timeout").value = config.timeout;
+      if (typeof config.poll === "boolean") {
+        el("poll").checked = config.poll;
+        if (config.poll) el("pollBox").open = true;
+      }
+      if (config.pollInterval) el("pollInterval").value = config.pollInterval;
+      if (config.pollMax) el("pollMax").value = config.pollMax;
       if (typeof config.verifyTls === "boolean") {
         el("verifyTls").checked = config.verifyTls;
         if (!config.verifyTls) el("advanced").open = true;
       }
       setJSONState();
+      setQueryState();
     }
 
     // 本地版跑在 127.0.0.1，链接发给别人打不开，所以分享链接指向在线版
@@ -1163,9 +1422,12 @@
     /* ---------- 事件绑定 ---------- */
 
     setJSONState();
+    setQueryState();
     renderMedia([]);
 
+    el("method").addEventListener("change", setJSONState);
     el("body").addEventListener("input", setJSONState);
+    el("query").addEventListener("input", setQueryState);
     el("send").addEventListener("click", sendRequest);
     el("cancel").addEventListener("click", () => {
       if (controller) controller.abort("cancel");

@@ -23,6 +23,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 INDEX_FILE = ROOT / "index.html"
 DEFAULT_PORT = 17831
+ALLOWED_METHODS = {"GET", "POST"}
 MAX_CONTROL_BODY = 2 * 1024 * 1024
 MAX_REMOTE_BODY = 20 * 1024 * 1024
 MAX_INLINE_BINARY = 12 * 1024 * 1024
@@ -109,6 +110,11 @@ def normalize_headers(value: Any) -> dict[str, str]:
 
 def build_remote_request(payload: dict[str, Any]) -> tuple[urllib.request.Request, bytes]:
     url = validate_remote_url(payload.get("url"))
+    method_value = payload.get("method", "POST")
+    if not isinstance(method_value, str) or method_value.strip().upper() not in ALLOWED_METHODS:
+        raise LocalError("请求方法只支持 GET 或 POST。")
+    method = method_value.strip().upper()
+
     api_key = payload.get("apiKey", "")
     auth_mode = payload.get("authMode", "x-api-key")
     if api_key is not None and not isinstance(api_key, str):
@@ -119,17 +125,19 @@ def build_remote_request(payload: dict[str, Any]) -> tuple[urllib.request.Reques
     if auth_mode != "none" and not api_key:
         raise LocalError("请填写 API Key，或将认证方式设为“不发送”。")
 
-    body_value = payload.get("body", "")
-    if isinstance(body_value, str):
-        body_text = body_value
-    else:
-        body_text = json.dumps(body_value, ensure_ascii=False, separators=(",", ":"))
-    try:
-        body = body_text.encode("utf-8")
-    except UnicodeEncodeError as exc:
-        raise LocalError("请求体包含无法编码为 UTF-8 的字符。") from exc
-    if len(body) > MAX_REMOTE_BODY:
-        raise LocalError("请求体不能超过 20 MB。")
+    body = b""
+    if method != "GET":
+        body_value = payload.get("body", "")
+        if isinstance(body_value, str):
+            body_text = body_value
+        else:
+            body_text = json.dumps(body_value, ensure_ascii=False, separators=(",", ":"))
+        try:
+            body = body_text.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise LocalError("请求体包含无法编码为 UTF-8 的字符。") from exc
+        if len(body) > MAX_REMOTE_BODY:
+            raise LocalError("请求体不能超过 20 MB。")
 
     headers = normalize_headers(payload.get("headers"))
     headers.setdefault("Content-Type", "application/json")
@@ -143,7 +151,13 @@ def build_remote_request(payload: dict[str, Any]) -> tuple[urllib.request.Reques
         if key.lower() in BLOCKED_REQUEST_HEADERS:
             raise LocalError(f"不允许手动设置请求头：{key}")
 
-    return urllib.request.Request(url, data=body, headers=headers, method="POST"), body
+    request = urllib.request.Request(
+        url,
+        data=body if method != "GET" else None,
+        headers=headers,
+        method=method,
+    )
+    return request, body
 
 
 def looks_binary(raw: bytes, content_type: str) -> bool:
@@ -233,6 +247,7 @@ def proxy_post(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "ok": True,
+        "method": request.get_method(),
         "status": status,
         "statusText": reason,
         "elapsedMs": elapsed_ms,

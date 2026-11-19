@@ -1,6 +1,6 @@
 # 通用 POST 接口测试工具
 
-一个零依赖的 POST 接口调试工具。填 URL / Headers / 请求 JSON 就能发请求，直接看状态码、耗时、响应头、格式化 JSON、响应文本，**返回的图片和视频会直接渲染出来**。
+一个零依赖的接口调试工具。填 URL / Headers / 请求体就能发 **GET 或 POST**，直接看状态码、耗时、响应头、格式化 JSON、响应文本，**返回的图片和视频会直接渲染出来**；查异步任务时可以开启**自动轮询**，一直等到任务出结果。
 
 不绑定任何模型或厂商，URL、Headers、请求体全部由你自己填。
 
@@ -34,6 +34,22 @@
 
 没有扩展名的地址（例如 `https://api.x.com/v1/files/abc`）会先按图片探测、失败再按视频探测，都不行就退化成一行提示，不会留下破图。签名链接过期时会明确提示「链接可能已过期或需要鉴权」。
 
+### GET 查任务与自动轮询
+
+左上角把方法切成 `GET`，在「查询参数 Query」里填 `{"task_ids": "123"}`，会自动 URL 编码后拼到地址后面。选 GET 时请求体输入框自动禁用，不会发出 body。
+
+异步接口（图片生成、视频生成等）返回的是任务 ID，结果要等几十秒到几分钟。勾选「自动轮询任务」后，工具会按设定的间隔重发同一请求，直到任务进入终态才停：
+
+| 识别位置 | 例子 |
+| --- | --- |
+| `data[].status` | Kling `GET /tasks` 的 `data[0].status` |
+| `tasks[].status` / `results[].status` / `items[].status` | 其他常见任务列表 |
+| 顶层 `status` / `state` | 单任务返回 |
+
+终态关键词：`succeeded` / `success` / `completed` / `done` / `finished` / `failed` / `error` / `canceled` / `expired` 等。全部任务都进终态就停；返回 4xx/5xx 或找不到状态字段也会立刻停下并说明原因。轮询期间可以随时点「取消」。
+
+任务结束后，响应里的 `outputs[].url`、`watermark_url` 等地址会自动渲染成图片卡片。
+
 ### 跨域说明
 
 浏览器要求目标接口返回 `Access-Control-Allow-Origin`。主流接口大多支持，实测可直接用。
@@ -47,7 +63,7 @@
 
 ### 分享配置
 
-点「复制分享链接」会把当前的目标 URL、认证方式、Headers、请求 JSON、超时打包进链接，对方打开就是同一套配置。
+点「复制分享链接」会把当前的请求方法、目标 URL、查询参数、认证方式、Headers、请求 JSON、超时与轮询设置打包进链接，对方打开就是同一套配置。
 
 **API Key 不会进链接**，实测还原后密钥框为空。
 
@@ -94,17 +110,21 @@ python3 server.py --no-browser     # 不自动打开浏览器
 
 | 字段 | 说明 |
 | --- | --- |
+| 请求方法 | `POST`（默认）或 `GET`。选 GET 时不发送请求体，输入框自动禁用 |
 | 请求 URL | 完整地址，含 `https://`。留空会提示，不会发请求 |
+| 查询参数 Query | JSON 对象，如 `{"task_ids": "123"}`，自动 URL 编码后拼到地址后面；留空合法 |
 | 认证方式 | `不发送` / `x-api-key` / `Authorization: Bearer`，默认不发送 |
 | API Key | 仅保存在页面内存，**不写盘、不写配置文件、不回显、不进 URL** |
 | 自定义 Headers | JSON 对象格式，如 `{"X-Trace-Id": "abc"}`。留空合法 |
-| 请求 JSON | 留空合法（会发送 0 字节请求体）；非空则必须是合法 JSON |
+| 请求 JSON | 留空合法（会发送 0 字节请求体）；非空则必须是合法 JSON。GET 下不发送 |
+| 自动轮询 | 勾选后按间隔重发同一请求，直到任务进入终态；间隔 2–60 秒，最少 1 次最多 200 次 |
 
 发送后可以看到：
 
 - **图片 / 视频**：自动识别并渲染（网页版与本地版都支持）
 - **响应文本**：常驻面板，按 顶层 `text` → `content[].text` → `choices[0].message.content` 顺序提取，都没有则显示「响应中未找到可提取文本」
 - **状态码 / 耗时**：非 2xx 也会完整展示，不会被当成异常吞掉
+- **轮询进度**：轮询中显示「轮询 3/60 · 状态：processing · 5 秒后重试」，结束后显示最终状态与轮询次数
 - **响应头 / 格式化 JSON / cURL**：cURL 里的密钥用环境变量 `$POST_TEST_API_KEY` 引用，不落明文
 
 ---
@@ -124,7 +144,7 @@ python3 server.py --no-browser     # 不自动打开浏览器
 
 ## 限制
 
-- 只支持 POST（如需 GET / PUT / DELETE，自行改代码）
+- 支持 GET 与 POST；PUT / PATCH / DELETE 未做（如需自行改代码）
 - 超时范围 1–300 秒，默认 120 秒
 - 网页版受浏览器约束：不能读未开放的响应头、不能跳过证书校验
 - 本地版请求体上限 2 MB，响应体上限 20 MB；二进制响应超过 12 MB 时跳过内联预览，只给出提示
@@ -158,6 +178,7 @@ LICENSE
 ```json
 {
   "url": "https://example.com/api",
+  "method": "POST",
   "apiKey": "",
   "authMode": "none",
   "headers": {},
@@ -167,7 +188,7 @@ LICENSE
 }
 ```
 
-`authMode` 取值：`x-api-key` / `bearer` / `none`。
+`authMode` 取值：`x-api-key` / `bearer` / `none`。`method` 取值：`GET` / `POST`，默认 `POST`；`GET` 时不发送请求体。
 
 响应体在原有字段之外，还会返回：
 
