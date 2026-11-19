@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>通用 POST 接口测试工具</title>
+  <meta name="description" content="打开网页就能用的通用 POST 接口测试工具：填 URL、Headers、JSON 直接发请求，看状态码、耗时、响应头、格式化 JSON、响应文本，并直接展示返回的图片与视频。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- 字体异步加载：网络不通时不阻塞首屏，直接回退到系统字体 -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" media="print" onload="this.media='all';this.onload=null">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap"></noscript>
+  <style>
+    :root {
+      --bg: #f5f7f6;
+      --panel: #ffffff;
+      --panel-soft: #f9fbfa;
+      --ink: #17221e;
+      --muted: #64716c;
+      --line: #dce5e1;
+      --line-strong: #c9d6d0;
+      --accent: #0f9f6e;
+      --accent-dark: #087a54;
+      --accent-soft: #e8f7f0;
+      --danger: #c43b45;
+      --danger-soft: #fff0f1;
+      --warning: #a66410;
+      --warning-soft: #fff7e7;
+      --code: #1d2824;
+      --shadow: 0 10px 30px rgba(25, 49, 41, 0.07);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(15, 159, 110, 0.07), transparent 27rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Outfit", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 56px; }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); }
+
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.12; letter-spacing: -0.035em; }
+    .lead { max-width: 720px; margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+
+    .privacy {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: none;
+      padding: 9px 12px;
+      border: 1px solid #bfe2d3;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr); gap: 18px; align-items: start; }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .panel-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 15px; }
+    .panel-title svg { color: var(--accent-dark); }
+    .panel-body { padding: 18px; }
+
+    .field { display: grid; gap: 7px; margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
+    .hint { color: var(--muted); font-size: 12px; font-weight: 400; }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: var(--panel-soft);
+      color: var(--ink);
+      outline: none;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    input, select { min-height: 42px; padding: 9px 11px; }
+    textarea { min-height: 240px; padding: 13px; resize: vertical; font-family: "JetBrains Mono", "SFMono-Regular", monospace; font-size: 12.5px; line-height: 1.55; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.11); }
+    input.invalid, textarea.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196, 59, 69, 0.08); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .url-row { display: grid; grid-template-columns: 1fr auto; gap: 9px; }
+    .method-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 64px; border-radius: 10px; background: var(--code); color: white; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; }
+
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 16px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 9px 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 600;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); border-color: #aabbb4; box-shadow: 0 5px 14px rgba(25, 49, 41, 0.07); }
+    .btn-primary { min-width: 120px; border-color: var(--accent); background: var(--accent); color: white; }
+    .btn-primary:hover:not(:disabled) { border-color: var(--accent-dark); background: var(--accent-dark); }
+    .btn-danger { color: var(--danger); }
+    .btn-small { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+
+    .advanced { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+    .advanced > summary { padding: 11px 13px; cursor: pointer; font-weight: 600; list-style: none; }
+    .advanced > summary::-webkit-details-marker { display: none; }
+    .advanced > summary::before { content: "▸ "; color: var(--muted); }
+    .advanced[open] > summary::before { content: "▾ "; }
+    .advanced-body { padding: 0 13px 13px; }
+    .advanced-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .advanced-note code { padding: 1px 5px; border-radius: 5px; background: #eef2f1; font-family: "JetBrains Mono", monospace; font-size: 11px; }
+
+    /* 媒体面板 */
+    .media-panel { padding: 18px; border-bottom: 1px solid var(--line); }
+    .media-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .media-title { font-weight: 600; }
+    .media-count { color: var(--muted); font-size: 11px; }
+    .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 12px; }
+    .media-card { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+    .media-frame { position: relative; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #eef2f1; aspect-ratio: 4 / 3; }
+    .media-frame img, .media-frame video { display: block; width: 100%; height: 100%; object-fit: contain; background: #0f1512; }
+    .media-frame.is-failed { padding: 12px; color: var(--muted); font-size: 11.5px; text-align: center; line-height: 1.5; }
+    .media-badge { position: absolute; top: 6px; left: 6px; z-index: 1; padding: 2px 7px; border-radius: 999px; background: rgba(29, 40, 36, 0.82); color: #fff; font-size: 10px; font-weight: 600; }
+    .media-meta { display: grid; gap: 2px; min-width: 0; }
+    .media-path { overflow: hidden; color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .media-info { color: var(--ink); font-family: "JetBrains Mono", monospace; font-size: 11px; }
+    .media-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .media-btn { flex: 1; min-height: 28px; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; color: var(--ink); font-size: 11.5px; font-weight: 600; }
+    .media-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+    .response-text-panel { padding: 18px; border-bottom: 1px solid var(--line); background: var(--panel-soft); }
+    .response-text-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .response-text-title { font-weight: 600; }
+    .response-text-source { color: var(--muted); font-size: 11px; }
+    .response-text-box { min-height: 150px; max-height: 300px; overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+    .response-text-box.is-empty { display: grid; place-items: center; min-height: 180px; color: var(--muted); text-align: center; }
+    .response-text-box.is-error { border-color: #f1c8cc; background: var(--danger-soft); color: var(--danger); }
+
+    .result-head { padding: 18px; border-bottom: 1px solid var(--line); }
+    .result-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; }
+    .status-ok { background: var(--accent-soft); color: var(--accent-dark); }
+    .status-http { background: #eef2f1; color: #45534e; }
+    .status-error { background: var(--danger-soft); color: var(--danger); }
+    .latency { color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 12px; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--line); }
+    .metric { padding: 11px 12px; background: var(--panel-soft); }
+    .metric span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; }
+    .metric strong { display: block; overflow: hidden; text-overflow: ellipsis; font-family: "JetBrains Mono", monospace; font-size: 12px; white-space: nowrap; }
+
+    .tabs { display: flex; gap: 3px; padding: 6px; border-bottom: 1px solid var(--line); background: #f7f9f8; }
+    .tab { flex: 1; min-height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; }
+    .tab:hover { color: var(--ink); }
+    .tab.active { background: #fff; color: var(--ink); box-shadow: 0 1px 5px rgba(25, 49, 41, 0.08); }
+    .tab-content { display: none; min-height: 300px; max-height: 540px; overflow: auto; }
+    .tab-content.active { display: block; }
+    pre { margin: 0; padding: 16px; white-space: pre-wrap; overflow-wrap: anywhere; color: #d9e6e0; background: var(--code); font-family: "JetBrains Mono", monospace; font-size: 12px; line-height: 1.55; }
+    .headers-list { display: grid; }
+    .header-row { display: grid; grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1fr); gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: "JetBrains Mono", monospace; font-size: 11.5px; }
+    .header-row:last-child { border-bottom: 0; }
+    .header-name { color: var(--accent-dark); overflow-wrap: anywhere; }
+    .header-value { color: var(--ink); overflow-wrap: anywhere; }
+    .curl-box { padding: 16px; background: var(--panel-soft); }
+    .curl-box pre { min-height: 260px; border-radius: 10px; }
+
+    .notice { display: none; margin-bottom: 14px; padding: 11px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
+    .notice.visible { display: block; }
+    .notice-error { border: 1px solid #f1c8cc; background: var(--danger-soft); color: var(--danger); }
+    .notice-warning { border: 1px solid #ecd6a8; background: var(--warning-soft); color: var(--warning); }
+    .toast { position: fixed; left: 50%; bottom: 24px; z-index: 10; padding: 10px 14px; border-radius: 999px; background: var(--code); color: white; box-shadow: var(--shadow); opacity: 0; transform: translate(-50%, 10px); pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    .footer { margin-top: 22px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .footer a { color: var(--accent-dark); }
+
+    @media (max-width: 860px) {
+      .shell { width: min(100% - 22px, 720px); padding-top: 22px; }
+      .topbar { display: grid; }
+      .privacy { justify-self: start; }
+      .workspace { grid-template-columns: 1fr; }
+      .result-panel { order: -1; }
+    }
+
+    @media (max-width: 560px) {
+      .panel-body, .result-head { padding: 14px; }
+      .grid-2, .metrics { grid-template-columns: 1fr; }
+      .url-row { grid-template-columns: 1fr; }
+      .method-chip { min-height: 36px; }
+      .header-row { grid-template-columns: 1fr; gap: 3px; }
+      .media-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow"><span class="eyebrow-dot"></span>Web POST Lab</span>
+        <h1>通用 POST 接口测试</h1>
+        <p class="lead">填目标地址、认证信息与 JSON 请求体，直接在浏览器里发 POST 请求，查看响应文本、图片视频、状态码、耗时、响应头与原始返回。无需安装任何东西。</p>
+      </div>
+      <span class="privacy">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        API Key 只在你的浏览器内存里
+      </span>
+    </header>
+
+    <section class="workspace">
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 17h16M4 12h16M4 7h10"></path></svg>
+            请求配置
+          </h2>
+          <button class="btn btn-small" id="shareLink" type="button">复制分享链接</button>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label class="field-label" for="url"><span>目标 URL</span><span class="hint">POST</span></label>
+            <div class="url-row">
+              <input id="url" type="url" spellcheck="false" autocomplete="url" placeholder="https://example.com/api">
+              <span class="method-chip">POST</span>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label class="field-label" for="authMode"><span>认证方式</span></label>
+              <select id="authMode">
+                <option value="none">不发送</option>
+                <option value="x-api-key">x-api-key</option>
+                <option value="bearer">Authorization: Bearer</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="timeout"><span>超时时间</span><span class="hint">1–300 秒</span></label>
+              <input id="timeout" type="number" min="1" max="300" value="120">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="apiKey"><span>API Key</span><button class="btn btn-small" id="toggleKey" type="button">显示</button></label>
+            <input id="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="只存在当前页面内存，不上传任何服务器">
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="headers"><span>额外 Headers</span><span class="hint">JSON 对象，可留空</span></label>
+            <textarea id="headers" style="min-height:94px" spellcheck="false" placeholder="可留空，例如 {&quot;Accept&quot;: &quot;application/json&quot;}"></textarea>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="body"><span>请求 JSON</span><span class="hint" id="jsonState">可为空</span></label>
+            <textarea id="body" spellcheck="false" placeholder="可留空；填写后必须是合法 JSON"></textarea>
+          </div>
+
+          <details class="advanced" id="advanced">
+            <summary>高级：跨域代理（接口不支持 CORS 时才需要）</summary>
+            <div class="advanced-body">
+              <div class="field">
+                <label class="field-label" for="proxy"><span>代理前缀</span><span class="hint">可留空</span></label>
+                <input id="proxy" type="text" spellcheck="false" placeholder="https://your-proxy.example.com/?url=">
+              </div>
+              <p class="advanced-note">
+                绝大多数接口（minimax、OpenAI 等）都允许浏览器跨域直连，这一项留空即可。<br>
+                只有目标接口没返回 <code>Access-Control-Allow-Origin</code> 时才需要填。<br>
+                填法：前缀里含 <code>{url}</code> 就替换成编码后的地址，否则直接把编码后的地址接在后面。<br>
+                <strong>注意</strong>：走代理时你的 API Key 会经过那台代理服务器，请只填自己可控的代理。
+              </p>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button class="btn btn-primary" id="send" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
+              发送请求
+            </button>
+            <button class="btn" id="cancel" type="button" disabled>取消</button>
+            <button class="btn btn-danger" id="clearKey" type="button">清空密钥</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="panel-head">
+          <h2 class="panel-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
+            响应结果
+          </h2>
+          <button class="btn btn-small" id="copyResponse" type="button" disabled>复制响应</button>
+        </div>
+
+        <section class="media-panel" id="mediaPanel" hidden>
+          <div class="media-head">
+            <span class="media-title">图片 / 视频</span>
+            <span class="media-count" id="mediaCount">0 项</span>
+          </div>
+          <div class="media-grid" id="mediaGrid"></div>
+        </section>
+
+        <div class="response-text-panel">
+          <div class="response-text-head">
+            <span class="response-text-title">响应文本</span>
+            <span id="responseTextSource" class="response-text-source">等待响应</span>
+          </div>
+          <div id="responseText" class="response-text-box is-empty">等待发送请求</div>
+        </div>
+
+        <div id="result" hidden>
+          <div class="result-head">
+            <div id="notice" class="notice"></div>
+            <div class="result-status">
+              <span id="statusPill" class="status-pill status-http">等待中</span>
+              <span id="latency" class="latency">— ms</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><span>响应大小</span><strong id="sizeMetric">—</strong></div>
+              <div class="metric"><span>Content-Type</span><strong id="typeMetric">—</strong></div>
+              <div class="metric"><span>完成时间</span><strong id="timeMetric">—</strong></div>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab active" data-tab="formatted" type="button">格式化</button>
+            <button class="tab" data-tab="raw" type="button">原始正文</button>
+            <button class="tab" data-tab="headers" type="button">响应头</button>
+            <button class="tab" data-tab="curl" type="button">cURL</button>
+          </div>
+          <div id="tab-formatted" class="tab-content active"><pre id="formattedOutput"></pre></div>
+          <div id="tab-raw" class="tab-content"><pre id="rawOutput"></pre></div>
+          <div id="tab-headers" class="tab-content"><div id="responseHeaders" class="headers-list"></div></div>
+          <div id="tab-curl" class="tab-content"><div class="curl-box"><pre id="curlOutput"></pre></div></div>
+        </div>
+      </section>
+    </section>
+
+    <p class="footer">
+      纯静态页面，请求由你的浏览器直接发往目标接口，不经过任何中间服务器。<br>
+      接口不支持跨域时，可展开「高级」填自己的代理，或改用
+      <a href="https://github.com/Yzero123/post-api-tester" target="_blank" rel="noopener">本地 Python 版</a>。
+    </p>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    let controller = null;
+    let latestResultText = "";
+    let toastTimer = null;
+    let objectUrls = [];
+    const blobCache = new Map();
+
+    const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico|tiff?)$/i;
+    const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv|ogg|mkv|avi|flv|m3u8)$/i;
+    // 只有带媒体语义的 key 才进入探测；裸 url / uri / link 太常见（回显请求地址就会误判）
+    const MEDIA_KEY = /(image|img|video|media|cover|poster|thumbnail|thumb|asset|output|file|picture|photo|src)/i;
+    // 位于 data[0] / images[1] 这类媒体数组里的地址，即使没有扩展名也值得探测
+    const MEDIA_ARRAY = /(data|images|videos|outputs|results|items|files|assets|list)\[\d+\]/i;
+    const B64_KEY = /^(b64_json|b64|base64|image_base64|video_base64|imageBase64|videoBase64|image_data|data)$/i;
+    const FORBIDDEN_HEADERS = new Set([
+      "host", "connection", "content-length", "origin", "referer", "user-agent",
+      "accept-encoding", "cookie", "date", "expect", "keep-alive", "te",
+      "trailer", "transfer-encoding", "upgrade", "via", "dnt", "permissions-policy"
+    ]);
+
+    function showToast(message) {
+      const toast = el("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes && bytes !== 0) return "—";
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / 1024 / 1024).toFixed(2) + " MB";
+    }
+
+    function formatDuration(seconds) {
+      if (!isFinite(seconds)) return "";
+      const m = Math.floor(seconds / 60);
+      const s = Math.round(seconds % 60);
+      return m + ":" + String(s).padStart(2, "0");
+    }
+
+    function isForbiddenHeader(name) {
+      const lower = String(name).toLowerCase();
+      return FORBIDDEN_HEADERS.has(lower)
+        || lower.startsWith("sec-")
+        || lower.startsWith("proxy-")
+        || lower.startsWith("access-control-");
+    }
+
+    function setJSONState() {
+      const text = el("body").value.trim();
+      if (!text) {
+        el("body").classList.remove("invalid");
+        el("jsonState").textContent = "可为空";
+        el("jsonState").style.color = "var(--muted)";
+        return true;
+      }
+      try {
+        JSON.parse(text);
+        el("body").classList.remove("invalid");
+        el("jsonState").textContent = "JSON 有效";
+        el("jsonState").style.color = "var(--accent-dark)";
+        return true;
+      } catch (error) {
+        el("body").classList.add("invalid");
+        el("jsonState").textContent = "JSON 无效";
+        el("jsonState").style.color = "var(--danger)";
+        return false;
+      }
+    }
+
+    function parseHeaders() {
+      const text = el("headers").value.trim();
+      if (!text) return {};
+      const parsed = JSON.parse(text);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+        throw new Error("额外 Headers 必须是 JSON 对象。");
+      }
+      return parsed;
+    }
+
+    function shellQuote(value) {
+      return "'" + String(value).replaceAll("'", "'\"'\"'") + "'";
+    }
+
+    function makeCurl(payload) {
+      const parts = [
+        "curl --request POST",
+        "  --url " + shellQuote(payload.url),
+        "  --header " + shellQuote("Content-Type: application/json")
+      ];
+      for (const [key, value] of Object.entries(payload.headers)) {
+        parts.push("  --header " + shellQuote(key + ": " + value));
+      }
+      if (payload.authMode === "x-api-key") {
+        parts.push('  --header "x-api-key: $POST_TEST_API_KEY"');
+      } else if (payload.authMode === "bearer") {
+        parts.push('  --header "Authorization: Bearer $POST_TEST_API_KEY"');
+      }
+      parts.push("  --data-raw " + shellQuote(payload.body));
+      return parts.join(" \\\n");
+    }
+
+    function setNotice(type, message) {
+      const notice = el("notice");
+      notice.className = "notice";
+      if (!message) return;
+      notice.classList.add("visible", type === "error" ? "notice-error" : "notice-warning");
+      notice.textContent = message;
+    }
+
+    function statusClass(status) {
+      if (status >= 200 && status < 300) return "status-ok";
+      if (status >= 400) return "status-error";
+      return "status-http";
+    }
+
+    function displayText(value) {
+      if (typeof value === "string") return value;
+      if (typeof value === "number" || typeof value === "boolean") return String(value);
+      return "";
+    }
+
+    function extractResponseText(payload) {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        return { text: "", source: "未找到" };
+      }
+
+      const directText = displayText(payload.text);
+      if (directText.trim()) return { text: directText, source: "顶层 text" };
+
+      if (Array.isArray(payload.content)) {
+        const contentText = payload.content
+          .map((block) => {
+            if (typeof block === "string") return block;
+            if (block && block.type === "text") return displayText(block.text);
+            return "";
+          })
+          .filter((text) => text.trim())
+          .join("\n\n");
+        if (contentText.trim()) return { text: contentText, source: "content[].text" };
+      }
+
+      const choiceContent = payload.choices && payload.choices[0] && payload.choices[0].message
+        ? payload.choices[0].message.content
+        : undefined;
+      const choiceText = typeof choiceContent === "string"
+        ? choiceContent
+        : Array.isArray(choiceContent)
+          ? choiceContent
+            .map((block) => (block && block.type === "text" ? displayText(block.text) : ""))
+            .filter((text) => text.trim())
+            .join("\n\n")
+          : "";
+      if (choiceText.trim()) return { text: choiceText, source: "choices[0].message.content" };
+
+      return { text: "", source: "未找到" };
+    }
+
+    function setResponseText(text, source, isError) {
+      const box = el("responseText");
+      box.textContent = text;
+      box.classList.toggle("is-empty", !text);
+      box.classList.toggle("is-error", Boolean(isError));
+      el("responseTextSource").textContent = source;
+    }
+
+    /* ---------- 媒体识别 ---------- */
+
+    function guessMimeFromBase64(value) {
+      const head = value.replace(/\s+/g, "").slice(0, 44);
+      if (head.startsWith("iVBORw0KGgo")) return "image/png";
+      if (head.startsWith("/9j/")) return "image/jpeg";
+      if (head.startsWith("R0lGOD")) return "image/gif";
+      if (head.startsWith("UklGR")) return "image/webp";
+      if (head.startsWith("Qk")) return "image/bmp";
+      if (head.startsWith("PHN2Zw") || head.startsWith("PD94bWw")) return "image/svg+xml";
+      try {
+        const bin = atob(head.slice(0, 24));
+        if (bin.slice(4, 8) === "ftyp") return "video/mp4";
+        if (bin.charCodeAt(0) === 0x1a && bin.charCodeAt(1) === 0x45) return "video/webm";
+      } catch (error) {
+        return null;
+      }
+      return null;
+    }
+
+    function collectMedia(payload) {
+      const found = [];
+      const seen = new Set();
+
+      function add(kind, src, path, origin) {
+        // data URI 只拿逗号后的载荷做去重键，避免同一份数据因 media_type 不同被算两次
+        const payload = src.startsWith("data:") ? src.slice(src.indexOf(",") + 1) : src;
+        const key = kind + "|" + payload.length + "|" + payload.slice(0, 160);
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push({ kind: kind, src: src, path: path, origin: origin });
+      }
+
+      function handleString(value, path, keyName) {
+        const dataMatch = /^data:(image|video)\/([a-z0-9.+-]+);base64,([\s\S]+)$/i.exec(value);
+        if (dataMatch) {
+          add(dataMatch[1].toLowerCase(), value, path, "data-uri");
+          return;
+        }
+        if (/^https?:\/\//i.test(value)) {
+          const clean = value.split(/[?#]/)[0];
+          if (IMAGE_EXT.test(clean)) {
+            add("image", value, path, "url");
+          } else if (VIDEO_EXT.test(clean)) {
+            add("video", value, path, "url");
+          } else if ((keyName && MEDIA_KEY.test(keyName)) || MEDIA_ARRAY.test(path)) {
+            add("probe", value, path, "url");
+          }
+          return;
+        }
+        if (keyName && B64_KEY.test(keyName) && value.length > 64
+          && /^[A-Za-z0-9+/\s]+={0,2}$/.test(value.slice(0, 4096))) {
+          const mime = guessMimeFromBase64(value);
+          if (mime) {
+            add(mime.startsWith("video") ? "video" : "image",
+              "data:" + mime + ";base64," + value.replace(/\s+/g, ""), path, "base64");
+          }
+        }
+      }
+
+      function walk(node, path, keyName) {
+        if (node === null || node === undefined) return;
+        if (typeof node === "string") {
+          handleString(node, path, keyName);
+          return;
+        }
+        if (Array.isArray(node)) {
+          node.forEach((item, index) => walk(item, path + "[" + index + "]", keyName));
+          return;
+        }
+        if (typeof node === "object") {
+          // 已按结构化方式消费掉的字段，不再走通用遍历，否则同一个 source 会被识别两次
+          const consumed = new Set();
+          const source = node.source;
+          if (source && typeof source === "object") {
+            if (source.type === "base64" && typeof source.data === "string") {
+              const mime = source.media_type || guessMimeFromBase64(source.data) || "image/png";
+              add(String(mime).startsWith("video") ? "video" : "image",
+                "data:" + mime + ";base64," + source.data.replace(/\s+/g, ""), path, "base64");
+              consumed.add("source");
+            } else if (source.type === "url" && typeof source.url === "string") {
+              add("probe", source.url, path, "url");
+              consumed.add("source");
+            }
+          }
+          for (const key of Object.keys(node)) {
+            if (consumed.has(key)) continue;
+            walk(node[key], path ? path + "." + key : key, key);
+          }
+        }
+      }
+
+      walk(payload, "", "");
+      return found;
+    }
+
+    function openableSrc(src) {
+      if (!src.startsWith("data:")) return src;
+      if (blobCache.has(src)) return blobCache.get(src);
+      const match = /^data:([^;,]+)[;,]/.exec(src);
+      const mime = match ? match[1] : "application/octet-stream";
+      const base64 = src.slice(src.indexOf(",") + 1);
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      blobCache.set(src, url);
+      objectUrls.push(url);
+      return url;
+    }
+
+    function mediaFilename(item, index) {
+      if (item.src.startsWith("data:")) {
+        const mime = /^data:([^;,]+)/.exec(item.src)[1];
+        const ext = (mime.split("/")[1] || "bin").replace("svg+xml", "svg");
+        return "media-" + (index + 1) + "." + ext;
+      }
+      try {
+        const parsed = new URL(item.src);
+        const base = decodeURIComponent(parsed.pathname.split("/").pop() || "");
+        if (base && /\.[a-z0-9]{2,5}$/i.test(base)) return base;
+      } catch (error) {
+        /* 落到默认名 */
+      }
+      return "media-" + (index + 1) + "." + (item.kind === "video" ? "mp4" : "png");
+    }
+
+    function triggerDownload(href, filename) {
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = filename;
+      link.rel = "noopener";
+      document.body.append(link);
+      link.click();
+      link.remove();
+    }
+
+    async function downloadMedia(item, index) {
+      const filename = mediaFilename(item, index);
+      try {
+        const response = await fetch(item.src);
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const blob = await response.blob();
+        const href = URL.createObjectURL(blob);
+        objectUrls.push(href);
+        triggerDownload(href, filename);
+        showToast("已开始下载 " + filename);
+      } catch (error) {
+        window.open(openableSrc(item.src), "_blank", "noopener");
+        showToast("已在新标签打开，可右键另存为");
+      }
+    }
+
+    function buildMediaCard(item, index) {
+      const card = document.createElement("div");
+      card.className = "media-card";
+
+      const frame = document.createElement("div");
+      frame.className = "media-frame";
+
+      const badge = document.createElement("span");
+      badge.className = "media-badge";
+      badge.textContent = item.kind === "probe" ? "探测" : item.kind === "video" ? "视频" : "图片";
+      frame.append(badge);
+
+      const meta = document.createElement("div");
+      meta.className = "media-meta";
+      const pathLine = document.createElement("div");
+      pathLine.className = "media-path";
+      pathLine.textContent = item.path || "(根)";
+      pathLine.title = item.path || "";
+      const infoLine = document.createElement("div");
+      infoLine.className = "media-info";
+      infoLine.textContent = "加载中…";
+      meta.append(pathLine, infoLine);
+
+      const actions = document.createElement("div");
+      actions.className = "media-actions";
+
+      const openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "media-btn";
+      openBtn.textContent = "打开";
+      openBtn.addEventListener("click", () => window.open(openableSrc(item.src), "_blank", "noopener"));
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "media-btn";
+      copyBtn.textContent = "复制链接";
+      copyBtn.addEventListener("click", async () => {
+        const text = item.src.startsWith("data:") ? "(内联 base64 数据，无外部链接)" : item.src;
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast("链接已复制");
+        } catch (error) {
+          showToast("复制失败，请手动选中");
+        }
+      });
+
+      const downloadBtn = document.createElement("button");
+      downloadBtn.type = "button";
+      downloadBtn.className = "media-btn";
+      downloadBtn.textContent = "下载";
+      downloadBtn.addEventListener("click", () => downloadMedia(item, index));
+
+      actions.append(openBtn, copyBtn, downloadBtn);
+      card.append(frame, meta, actions);
+
+      const attempts = item.kind === "probe" ? ["image", "video"] : [item.kind];
+      let cursor = 0;
+
+      function showFailed() {
+        frame.classList.add("is-failed");
+        const text = document.createElement("div");
+        text.textContent = item.origin === "url"
+          ? "无法加载：链接可能已过期或需要鉴权"
+          : "无法加载";
+        frame.replaceChildren(badge, text);
+        infoLine.textContent = "预览失败";
+      }
+
+      function attempt() {
+        if (cursor >= attempts.length) {
+          showFailed();
+          return;
+        }
+        const kind = attempts[cursor];
+        cursor += 1;
+        const node = document.createElement(kind === "video" ? "video" : "img");
+        node.addEventListener("error", attempt, { once: true });
+        if (kind === "video") {
+          node.controls = true;
+          node.preload = "metadata";
+          node.playsInline = true;
+          node.addEventListener("loadedmetadata", () => {
+            infoLine.textContent = node.videoWidth + "×" + node.videoHeight + " · " + formatDuration(node.duration);
+          }, { once: true });
+        } else {
+          node.loading = "lazy";
+          node.alt = item.path || "响应图片";
+          node.addEventListener("load", () => {
+            infoLine.textContent = node.naturalWidth + "×" + node.naturalHeight;
+          }, { once: true });
+        }
+        node.src = item.src;
+        badge.textContent = kind === "video" ? "视频" : "图片";
+        frame.replaceChildren(badge, node);
+      }
+
+      attempt();
+      return card;
+    }
+
+    function renderMedia(items) {
+      const panel = el("mediaPanel");
+      const grid = el("mediaGrid");
+      grid.replaceChildren();
+      if (!items || !items.length) {
+        panel.hidden = true;
+        el("mediaCount").textContent = "0 项";
+        return;
+      }
+      panel.hidden = false;
+      el("mediaCount").textContent = items.length + " 项";
+      items.forEach((item, index) => grid.append(buildMediaCard(item, index)));
+    }
+
+    function releaseObjectUrls() {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls = [];
+      blobCache.clear();
+    }
+
+    /* ---------- 渲染 ---------- */
+
+    function renderResult(result, payload) {
+      el("result").hidden = false;
+      el("copyResponse").disabled = false;
+      if (window.matchMedia("(max-width: 860px)").matches) {
+        el("result").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      el("statusPill").className = "status-pill " + statusClass(result.status);
+      el("statusPill").textContent = (result.status + " " + (result.statusText || "")).trim();
+      el("latency").textContent = result.elapsedMs + " ms";
+      el("sizeMetric").textContent = formatBytes(result.receivedBytes);
+      el("typeMetric").textContent = result.contentType || "未返回";
+      el("timeMetric").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+
+      const extracted = extractResponseText(result.json);
+      setResponseText(extracted.text || "响应中未找到可提取文本", extracted.source);
+
+      const media = [];
+      if (result.directMedia) media.push(result.directMedia);
+      if (result.json) media.push.apply(media, collectMedia(result.json));
+      renderMedia(media);
+
+      latestResultText = result.raw || "";
+      el("rawOutput").textContent = result.raw || "（响应体是二进制内容，未按文本展示）";
+      el("formattedOutput").textContent = result.json
+        ? JSON.stringify(result.json, null, 2)
+        : (result.raw || "（非 JSON 响应）");
+      el("curlOutput").textContent = makeCurl(payload);
+
+      el("responseHeaders").replaceChildren();
+      for (const [name, value] of result.headers || []) {
+        const row = document.createElement("div");
+        row.className = "header-row";
+        const key = document.createElement("div");
+        key.className = "header-name";
+        key.textContent = name;
+        const val = document.createElement("div");
+        val.className = "header-value";
+        val.textContent = value;
+        row.append(key, val);
+        el("responseHeaders").append(row);
+      }
+
+      const notes = [];
+      if (result.finalUrl && result.finalUrl !== payload.url) {
+        notes.push("发生跳转，最终地址：" + result.finalUrl);
+      }
+      if (result.droppedHeaders && result.droppedHeaders.length) {
+        notes.push("浏览器禁止手动设置这些请求头，已忽略：" + result.droppedHeaders.join("、"));
+      }
+      if (result.hiddenHeaderCount) {
+        notes.push("有 " + result.hiddenHeaderCount + " 个响应头未开放给脚本读取（接口未设置 Access-Control-Expose-Headers）。");
+      }
+      setNotice(notes.length ? "warning" : "", notes.join("\n"));
+    }
+
+    function renderError(message, detail) {
+      el("result").hidden = false;
+      el("copyResponse").disabled = false;
+      renderMedia([]);
+      if (window.matchMedia("(max-width: 860px)").matches) {
+        el("result").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      el("statusPill").className = "status-pill status-error";
+      el("statusPill").textContent = "请求失败";
+      el("latency").textContent = "— ms";
+      el("sizeMetric").textContent = "—";
+      el("typeMetric").textContent = "—";
+      el("timeMetric").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      setResponseText(message, "错误信息", true);
+      const full = detail ? message + "\n\n" + detail : message;
+      latestResultText = full;
+      el("formattedOutput").textContent = full;
+      el("rawOutput").textContent = full;
+      el("responseHeaders").replaceChildren();
+      el("curlOutput").textContent = "";
+      setNotice("error", full);
+    }
+
+    function setBusy(busy) {
+      el("send").disabled = busy;
+      el("cancel").disabled = !busy;
+      el("send").innerHTML = busy
+        ? '<span style="width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>发送中'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>发送请求';
+      if (busy) {
+        el("statusPill").className = "status-pill status-http";
+        el("statusPill").textContent = "请求中…";
+        el("latency").textContent = "计时中";
+      }
+    }
+
+    function buildTarget(url) {
+      const prefix = el("proxy").value.trim();
+      if (!prefix) return { target: url, usedProxy: false };
+      const encoded = encodeURIComponent(url);
+      const target = prefix.includes("{url}") ? prefix.replace("{url}", encoded) : prefix + encoded;
+      return { target: target, usedProxy: true };
+    }
+
+    async function sendRequest() {
+      if (!setJSONState()) {
+        showToast("请求 JSON 格式不正确");
+        el("body").focus();
+        return;
+      }
+
+      let customHeaders;
+      try {
+        customHeaders = parseHeaders();
+      } catch (error) {
+        showToast(error.message);
+        el("headers").focus();
+        return;
+      }
+
+      const url = el("url").value.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        showToast("请填写完整的 http:// 或 https:// 地址");
+        el("url").focus();
+        return;
+      }
+      if (el("authMode").value !== "none" && !el("apiKey").value.trim()) {
+        showToast("请先填写 API Key");
+        el("apiKey").focus();
+        return;
+      }
+      if (location.protocol === "https:" && url.toLowerCase().startsWith("http://")) {
+        renderError(
+          "浏览器阻止了这个请求",
+          "当前页面是 HTTPS，不能请求 http:// 地址（混合内容限制）。\n请改用 https:// 接口，或改用本地 Python 版。"
+        );
+        return;
+      }
+
+      const outHeaders = { "Content-Type": "application/json" };
+      const dropped = [];
+      for (const [key, value] of Object.entries(customHeaders)) {
+        if (isForbiddenHeader(key)) {
+          dropped.push(key);
+          continue;
+        }
+        outHeaders[key] = String(value);
+      }
+      const authMode = el("authMode").value;
+      if (authMode === "x-api-key") outHeaders["x-api-key"] = el("apiKey").value.trim();
+      if (authMode === "bearer") outHeaders["Authorization"] = "Bearer " + el("apiKey").value.trim();
+
+      const timeoutSeconds = Math.min(300, Math.max(1, Number(el("timeout").value) || 120));
+      const { target, usedProxy } = buildTarget(url);
+
+      const payload = {
+        url: url,
+        authMode: authMode,
+        headers: customHeaders,
+        body: el("body").value
+      };
+
+      releaseObjectUrls();
+      controller = new AbortController();
+      const timer = setTimeout(() => controller.abort("timeout"), timeoutSeconds * 1000);
+      const startedAt = performance.now();
+
+      setBusy(true);
+      setResponseText("请求中…", "等待响应");
+      el("result").hidden = false;
+      setNotice("", "");
+
+      try {
+        const response = await fetch(target, {
+          method: "POST",
+          headers: outHeaders,
+          body: payload.body,
+          signal: controller.signal,
+          redirect: "follow"
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        const blob = await response.blob();
+        const elapsedMs = Math.round(performance.now() - startedAt);
+
+        const headerPairs = [];
+        let hiddenHeaderCount = 0;
+        response.headers.forEach((value, name) => headerPairs.push([name, value]));
+        const rawHeaderCount = Number(response.headers.get("x-debug-header-count") || 0);
+        if (!headerPairs.length) hiddenHeaderCount = rawHeaderCount;
+
+        let raw = "";
+        let json = null;
+        let directMedia = null;
+
+        if (/^(image|video)\//i.test(contentType)) {
+          const href = URL.createObjectURL(blob);
+          objectUrls.push(href);
+          directMedia = {
+            kind: contentType.toLowerCase().startsWith("video") ? "video" : "image",
+            src: href,
+            path: "响应体本身",
+            origin: "direct"
+          };
+        } else {
+          raw = await blob.text();
+          try {
+            json = JSON.parse(raw);
+          } catch (error) {
+            json = null;
+          }
+        }
+
+        renderResult({
+          status: response.status,
+          statusText: response.statusText,
+          elapsedMs: elapsedMs,
+          receivedBytes: blob.size,
+          contentType: contentType,
+          finalUrl: response.url,
+          headers: headerPairs,
+          hiddenHeaderCount: hiddenHeaderCount,
+          droppedHeaders: dropped,
+          raw: raw,
+          json: json,
+          directMedia: directMedia
+        }, payload);
+
+        if (usedProxy) {
+          showToast("已通过自定义代理发送");
+        }
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          if (controller && controller.signal.reason === "timeout") {
+            renderError("请求超时", "超过 " + timeoutSeconds + " 秒没有拿到响应。可以调大超时时间，或确认接口是否还在处理。");
+          } else {
+            showToast("请求已取消");
+          }
+        } else {
+          renderError(
+            "浏览器没能完成这个请求",
+            "原始错误：" + (error && error.message ? error.message : String(error))
+              + "\n\n常见原因：\n"
+              + "1. 目标接口不允许浏览器跨域（CORS）——展开「高级」填一个自己的代理前缀，或改用本地 Python 版。\n"
+              + "2. 地址写错、域名解析不了或服务不可达。\n"
+              + "3. 证书无效或被浏览器拦截。\n"
+              + "4. 被浏览器扩展（广告拦截、隐私插件）拦下了。"
+          );
+        }
+      } finally {
+        clearTimeout(timer);
+        setBusy(false);
+        controller = null;
+      }
+    }
+
+    /* ---------- 分享链接（不含 API Key） ---------- */
+
+    function encodeConfig(config) {
+      const bytes = new TextEncoder().encode(JSON.stringify(config));
+      let binary = "";
+      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+    }
+
+    function decodeConfig(text) {
+      const padded = text.replaceAll("-", "+").replaceAll("_", "/");
+      const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    }
+
+    function currentConfig() {
+      return {
+        url: el("url").value,
+        authMode: el("authMode").value,
+        headers: el("headers").value,
+        body: el("body").value,
+        timeout: el("timeout").value,
+        proxy: el("proxy").value
+      };
+    }
+
+    function applyConfig(config) {
+      if (!config || typeof config !== "object") return;
+      if (typeof config.url === "string") el("url").value = config.url;
+      if (typeof config.authMode === "string") el("authMode").value = config.authMode;
+      if (typeof config.headers === "string") el("headers").value = config.headers;
+      if (typeof config.body === "string") el("body").value = config.body;
+      if (config.timeout) el("timeout").value = config.timeout;
+      if (typeof config.proxy === "string" && config.proxy) {
+        el("proxy").value = config.proxy;
+        el("advanced").open = true;
+      }
+      setJSONState();
+    }
+
+    el("shareLink").addEventListener("click", async () => {
+      const encoded = encodeConfig(currentConfig());
+      const link = location.origin + location.pathname + "#c=" + encoded;
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast("分享链接已复制（不含 API Key）");
+      } catch (error) {
+        showToast("复制失败，请手动复制地址栏");
+      }
+      location.hash = "c=" + encoded;
+    });
+
+    if (location.hash.startsWith("#c=")) {
+      try {
+        applyConfig(decodeConfig(location.hash.slice(3)));
+      } catch (error) {
+        showToast("分享链接解析失败");
+      }
+    }
+
+    /* ---------- 事件绑定 ---------- */
+
+    setJSONState();
+    renderMedia([]);
+
+    el("body").addEventListener("input", setJSONState);
+    el("send").addEventListener("click", sendRequest);
+    el("cancel").addEventListener("click", () => {
+      if (controller) controller.abort("cancel");
+    });
+    el("clearKey").addEventListener("click", () => {
+      el("apiKey").value = "";
+      showToast("API Key 已从页面内存清空");
+      el("apiKey").focus();
+    });
+    el("toggleKey").addEventListener("click", () => {
+      const input = el("apiKey");
+      const visible = input.type === "text";
+      input.type = visible ? "password" : "text";
+      el("toggleKey").textContent = visible ? "显示" : "隐藏";
+    });
+    el("copyResponse").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(latestResultText);
+        showToast("响应已复制");
+      } catch (error) {
+        showToast("复制失败");
+      }
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        el("tab-" + tab.dataset.tab).classList.add("active");
+      });
+    });
+
+    const style = document.createElement("style");
+    style.textContent = "@keyframes spin{to{transform:rotate(360deg)}}";
+    document.head.append(style);
+  </script>
+</body>
+</html>
